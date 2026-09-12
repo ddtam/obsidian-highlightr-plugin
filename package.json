@@ -1,12 +1,13 @@
 {
   "name": "highlightr-plugin",
   "version": "1.3.0-plus.1",
-  "description": "Highlightr is a plugin that adds a simple highlighting modal for better multi-colored highlighting support \ud83c\udfa8.",
+  "description": "Highlightr is a plugin that adds a simple highlighting modal for better multi-colored highlighting support 🎨.",
   "main": "main.js",
   "scripts": {
     "dev": "rollup --config rollup.config.js -w",
     "build": "BUILD=production rollup --config rollup.config.js",
-    "brat:release": "node scripts/brat-release.mjs"
+    "brat:release": "node scripts/brat-release.mjs",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -15,12 +16,14 @@
     "@rollup/plugin-commonjs": "^18.0.0",
     "@rollup/plugin-node-resolve": "^11.2.1",
     "@rollup/plugin-typescript": "^8.2.1",
-    "@types/node": "^14.14.37",
+    "@types/node": "^22.20.2",
     "@types/sortablejs": "^1.13.0",
-    "obsidian": "^0.16.0",
+    "jsdom": "^27.0.1",
+    "obsidian": "^1.13.1",
     "rollup": "^2.32.1",
-    "tslib": "^2.2.0",
-    "typescript": "^4.2.4"
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
   },
   "dependencies": {
     "@simonwep/pickr": "^1.8.2",

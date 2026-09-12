@@ -1,4 +1,4 @@
-import { Editor, Menu, Plugin, PluginManifest } from "obsidian";
+import { Editor, MarkdownView, Menu, Notice, Plugin, PluginManifest } from "obsidian";
 import { wait } from "src/utils/util";
 import addIcons from "src/icons/customIcons";
 import { HighlightrSettingTab } from "../settings/settingsTab";
@@ -9,6 +9,12 @@ import highlighterMenu from "src/ui/highlighterMenu";
 import { createHighlighterIcons } from "src/icons/customIcons";
 
 import { createStyles } from "src/utils/createStyles";
+import {
+  applyReadingHighlight,
+  notifyOutcome,
+  ReadingSelectionTracker,
+  stampSourceLines,
+} from "src/plugin/readingModeHighlight";
 import { EnhancedApp, EnhancedEditor } from "src/settings/types";
 
 export default class HighlightrPlugin extends Plugin {
@@ -16,6 +22,7 @@ export default class HighlightrPlugin extends Plugin {
   editor: EnhancedEditor;
   manifest: PluginManifest;
   settings: HighlightrSettings;
+  readingSelection = new ReadingSelectionTracker();
 
   async onload() {
     console.log(`Highlightr v${this.manifest.version} loaded`);
@@ -31,6 +38,16 @@ export default class HighlightrPlugin extends Plugin {
     this.registerEvent(
       this.app.workspace.on("editor-menu", this.handleHighlighterInContextMenu)
     );
+
+    // Reading mode has no editor, so highlighting there means editing the
+    // file. Both halves of that are set up here: the post-processor records
+    // which source lines each rendered block came from, and the tracker
+    // remembers a selection past the point where it collapses, which is what
+    // makes the feature usable on a phone.
+    this.registerMarkdownPostProcessor(stampSourceLines);
+    this.registerDomEvent(document, "selectionchange", () => {
+      this.readingSelection.record(window.getSelection());
+    });
 
     this.addSettingTab(new HighlightrSettingTab(this.app, this));
 
@@ -152,14 +169,39 @@ export default class HighlightrPlugin extends Plugin {
 
       Object.keys(commandsMap).forEach((type) => {
         let highlighterpen = `highlightr-pen-${highlighterKey}`.toLowerCase();
+        const plot = commandsMap[type];
         this.addCommand({
           id: highlighterKey,
           name: highlighterKey,
           icon: highlighterpen,
-          editorCallback: async (editor: Editor) => {
-            applyCommand(commandsMap[type], editor);
-            await wait(10);
-            editor.focus();
+          // checkCallback rather than editorCallback: the same command has to
+          // reach both modes, and in reading mode there is no editor to hand
+          // it. It also hides itself in reading mode with nothing selected,
+          // rather than offering an action that cannot do anything.
+          checkCallback: (checking: boolean) => {
+            const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+            if (!view) return false;
+
+            if (view.getMode() !== "preview") {
+              if (checking) return true;
+              void (async () => {
+                applyCommand(plot, view.editor);
+                await wait(10);
+                view.editor.focus();
+              })();
+              return true;
+            }
+
+            const selection = this.readingSelection.current(view.file?.path);
+            if (selection === null) return false;
+            if (checking) return true;
+            void applyReadingHighlight(
+              this.app,
+              selection,
+              plot.prefix,
+              plot.suffix
+            ).then((outcome) => notifyOutcome(outcome, highlighterKey));
+            return true;
           },
         });
       });
