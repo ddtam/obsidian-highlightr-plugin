@@ -312,6 +312,71 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
   border-top: none;
 }
 
+/* The swatch is the drag handle now, so it should read as one. */
+.highlighter-item-draggable .highlighter-setting-icon {
+  cursor: grab;
+  touch-action: none;
+}
+
+.highlighter-item-draggable .highlighter-setting-icon:active {
+  cursor: grabbing;
+}
+
+/* A colour excluded from the reading-mode bar. Dimmed rather than hidden,
+   because the row still has to be found to turn it back on. */
+.HighlightrSettingsButtonQuick.is-off {
+  opacity: 0.35;
+}
+
+/* Phone layout. Obsidian stacks .setting-item into a column on a narrow
+   screen, which here left the swatch above the name and the buttons on a
+   third row: three times the height for the same content, and nothing lined
+   up. These rows are a swatch, a label and three small buttons, which fit
+   across a phone comfortably, so keep them in a row and tighten the padding
+   that was tuned for a desktop settings pane. */
+.is-mobile .highlighter-item-draggable .setting-item.highlighter-setting-item {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  padding: 8px 0;
+  gap: 8px;
+}
+
+.is-mobile .highlighter-item-draggable .setting-item-info {
+  margin-right: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Name and hex on one line rather than two, and truncated rather than
+   wrapping, so a long colour name cannot push the buttons off the row. */
+.is-mobile .highlighter-item-draggable .setting-item-name,
+.is-mobile .highlighter-item-draggable .setting-item-description {
+  display: inline;
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.is-mobile .highlighter-item-draggable .setting-item-description {
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.is-mobile .highlighter-item-draggable .setting-item-control {
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+/* The add-a-colour row has two text inputs and a picker; side by side on a
+   phone each one is too narrow to type a hex into. */
+.is-mobile .highlighterplugin-setting-item .setting-item-control {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .highlighter-sortable-fallback {
   cursor: grabbing;
   box-shadow: 0px 3px 32px rgb(31 38 135 / 15%);

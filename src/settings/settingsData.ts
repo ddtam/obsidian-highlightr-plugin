@@ -25,6 +25,15 @@ export interface HighlightrSettings {
    * one step and a bar appearing on every selection is mostly in the way.
    */
   readingBar: ReadingBarMode;
+  /**
+   * Which colours the reading-mode bar offers, by name.
+   *
+   * Empty means all of them, so a palette that predates this setting behaves
+   * as it did. The bar is a one-tap control on a phone, and eight swatches
+   * across a narrow screen makes each one a smaller target than the two or
+   * three anyone actually reaches for.
+   */
+  readingBarColors: string[];
   highlighterMethods: string;
   highlighters: Highlighters;
   highlighterOrder: string[];
@@ -33,6 +42,7 @@ export interface HighlightrSettings {
 const DEFAULT_SETTINGS: HighlightrSettings = {
   highlighterStyle: "none",
   readingBar: "mobile",
+  readingBarColors: [],
   highlighterMethods: "inline-styles",
   highlighters: {
     Pink: "#FFB8EBA6",

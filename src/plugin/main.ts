@@ -54,11 +54,14 @@ export default class HighlightrPlugin extends Plugin {
     this.registerMarkdownPostProcessor(stampSourceLines);
 
     this.readingBar = new ReadingSelectionBar(
-      () =>
-        this.settings.highlighterOrder.map((name) => ({
-          name,
-          hex: this.settings.highlighters[name],
-        })),
+      () => {
+        const enabled = this.settings.readingBarColors;
+        return this.settings.highlighterOrder
+          // An empty list means every colour, so a palette that predates the
+          // setting keeps behaving as it did.
+          .filter((name) => enabled.length === 0 || enabled.includes(name))
+          .map((name) => ({ name, hex: this.settings.highlighters[name] }));
+      },
       (name) => this.highlightSelectionInReadingMode(name)
     );
 

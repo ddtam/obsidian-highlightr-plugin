@@ -313,6 +313,13 @@ export class HighlightrSettingTab extends PluginSettingTab {
     });
 
     Sortable.create(highlightersContainer, {
+      // Drag from the swatch only. With no handle Sortable claims every touch
+      // that lands on a row, which on a phone means the colour list swallows
+      // the scroll gesture and cannot be scrolled back up.
+      handle: ".highlighter-setting-icon",
+      // A few pixels of slack before a drag begins, so a slightly imprecise
+      // tap on the swatch still scrolls rather than picking the row up.
+      touchStartThreshold: 4,
       animation: 500,
       ghostClass: "highlighter-sortable-ghost",
       chosenClass: "highlighter-sortable-chosen",
@@ -339,6 +346,32 @@ export class HighlightrSettingTab extends PluginSettingTab {
         .setClass("highlighter-setting-item")
         .setName(highlighter)
         .setDesc(this.plugin.settings.highlighters[highlighter])
+        .addButton((button) => {
+          const enabled = this.plugin.settings.readingBarColors;
+          const on = enabled.length === 0 || enabled.includes(highlighter);
+          button
+            .setClass("HighlightrSettingsButton")
+            .setClass("HighlightrSettingsButtonQuick")
+            .setIcon("highlightr-star")
+            .setTooltip(
+              on ? "Shown in the reading-mode bar" : "Hidden from the reading-mode bar"
+            )
+            .onClick(async () => {
+              // Empty means all, so the first exclusion has to write out the
+              // full list before removing one from it.
+              const list =
+                enabled.length === 0
+                  ? [...this.plugin.settings.highlighterOrder]
+                  : [...enabled];
+              const at = list.indexOf(highlighter);
+              if (at === -1) list.push(highlighter);
+              else list.splice(at, 1);
+              this.plugin.settings.readingBarColors = list;
+              await this.plugin.saveSettings();
+              this.display();
+            });
+          if (!on) button.buttonEl.addClass("is-off");
+        })
         .addButton((button) => {
           button
             .setClass("HighlightrSettingsButton")
