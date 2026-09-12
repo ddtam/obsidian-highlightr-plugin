@@ -887,3 +887,11 @@ PICKR 1.8.2 MIT | https://github.com/Simonwep/pickr
 .highlightr-reading-swatch:hover {
   border-color: var(--interactive-accent);
 }
+
+/* The eraser is a control rather than a colour, so it reads as one. */
+.highlightr-reading-eraser {
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+}

@@ -14,6 +14,7 @@ import {
   HIGHLIGHT_SUFFIX,
   highlightPrefix,
   notifyOutcome,
+  removeReadingHighlight,
   ReadingSelectionTracker,
   stampSourceLines,
 } from "src/plugin/readingModeHighlight";
@@ -62,7 +63,8 @@ export default class HighlightrPlugin extends Plugin {
           .filter((name) => enabled.length === 0 || enabled.includes(name))
           .map((name) => ({ name, hex: this.settings.highlighters[name] }));
       },
-      (name) => this.highlightSelectionInReadingMode(name)
+      (name) => this.highlightSelectionInReadingMode(name),
+      () => this.removeHighlightInReadingMode()
     );
 
     this.registerDomEvent(document, "selectionchange", () => {
@@ -149,6 +151,16 @@ export default class HighlightrPlugin extends Plugin {
       prefix,
       HIGHLIGHT_SUFFIX
     ).then((outcome) => notifyOutcome(outcome, name));
+  }
+
+  /** Remove the highlight the remembered reading-mode selection sits in. */
+  private removeHighlightInReadingMode(): void {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const selection = this.readingSelection.current(view?.file?.path);
+    if (selection === null) return;
+    void removeReadingHighlight(this.app, selection).then((outcome) =>
+      notifyOutcome(outcome, "")
+    );
   }
 
   reloadStyles(settings: HighlightrSettings) {
@@ -291,9 +303,24 @@ export default class HighlightrPlugin extends Plugin {
         id: "unhighlight",
         name: "Remove highlight",
         icon: "highlightr-eraser",
-        editorCallback: async (editor: Editor) => {
-          this.eraseHighlight(editor);
-          editor.focus();
+        // Both modes, same as the colour commands. In reading mode it offers
+        // itself only when the selection is actually inside a highlight.
+        checkCallback: (checking: boolean) => {
+          const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+          if (!view) return false;
+
+          if (view.getMode() !== "preview") {
+            if (checking) return true;
+            this.eraseHighlight(view.editor);
+            view.editor.focus();
+            return true;
+          }
+
+          const selection = this.readingSelection.current(view.file?.path);
+          if (selection === null || selection.mark === undefined) return false;
+          if (checking) return true;
+          this.removeHighlightInReadingMode();
+          return true;
         },
       });
     });

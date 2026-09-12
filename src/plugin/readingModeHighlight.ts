@@ -61,6 +61,22 @@ export interface ReadingSelection {
   occurrence: number;
   /** How many times `text` occurs in the block as rendered. */
   renderedCount: number;
+  /**
+   * Set when the selection sits inside an existing highlight.
+   *
+   * Removal is easier to place than insertion: the mark element states its
+   * own text, so there is no need to work out where a selection begins. Any
+   * selection touching a mark removes the whole mark, because a partial
+   * unhighlight would mean splitting it, which is not what anyone means by
+   * removing a highlight.
+   */
+  mark?: { text: string; occurrence: number; count: number };
+}
+
+/** Matches one highlight and captures its contents. */
+function markPattern(text: string): RegExp {
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`<mark\\b[^>]*>${escaped}</mark>`, "g");
 }
 
 export interface ApplyOutcome {
@@ -161,7 +177,84 @@ export function describeSelection(sel: Selection | null): ReadingSelection | nul
   const renderedCount = countOccurrences(blockText, text);
   if (renderedCount === 0) return null;
 
-  return { path, lineStart, lineEnd, text, occurrence, renderedCount };
+  return {
+    path,
+    lineStart,
+    lineEnd,
+    text,
+    occurrence,
+    renderedCount,
+    mark: describeMark(block, start),
+  };
+}
+
+/** Describe the highlight the selection sits in, if it sits in one. */
+function describeMark(
+  block: HTMLElement,
+  start: HTMLElement
+): ReadingSelection["mark"] {
+  const mark = start.closest("mark");
+  if (mark === null || !block.contains(mark)) return undefined;
+
+  const text = mark.textContent ?? "";
+  if (text.length === 0) return undefined;
+
+  // Which of the identically-worded highlights in this block is this one.
+  const siblings = Array.from(block.querySelectorAll("mark")).filter(
+    (m) => m.textContent === text
+  );
+  const occurrence = siblings.indexOf(mark);
+  if (occurrence === -1) return undefined;
+
+  return { text, occurrence, count: siblings.length };
+}
+
+/**
+ * Remove the highlight the selection sits in.
+ *
+ * Same safety property as writing one: the source slice must contain exactly
+ * as many highlights of this text as the rendered block showed, or the two
+ * are not describing the same thing and nothing is touched.
+ */
+export function rewriteSourceRemoving(
+  data: string,
+  sel: ReadingSelection
+): { text?: string; error?: string } {
+  const mark = sel.mark;
+  if (mark === undefined) {
+    return { error: "that selection is not inside a highlight" };
+  }
+
+  const lines = data.split("\n");
+  if (sel.lineEnd >= lines.length) {
+    return { error: "the note changed since that selection was made" };
+  }
+
+  const slice = lines.slice(sel.lineStart, sel.lineEnd + 1).join("\n");
+  const found = slice.match(markPattern(mark.text));
+  if (found === null || found.length !== mark.count) {
+    return {
+      error:
+        "the highlights in the source do not match what is rendered, so the " +
+        "right one cannot be identified",
+    };
+  }
+
+  let seen = -1;
+  const patched = slice.replace(markPattern(mark.text), (whole) => {
+    seen++;
+    return seen === mark.occurrence ? mark.text : whole;
+  });
+
+  const before = lines.slice(0, sel.lineStart).join("\n");
+  const after = lines.slice(sel.lineEnd + 1).join("\n");
+  return {
+    text: [
+      ...(sel.lineStart > 0 ? [before] : []),
+      patched,
+      ...(sel.lineEnd + 1 < lines.length ? [after] : []),
+    ].join("\n"),
+  };
 }
 
 /**
@@ -225,6 +318,22 @@ export async function applyReadingHighlight(
   prefix: string,
   suffix: string
 ): Promise<ApplyOutcome> {
+  return editFile(app, sel, (data) => rewriteSource(data, sel, prefix, suffix));
+}
+
+/** Remove the highlight the described selection sits in. */
+export async function removeReadingHighlight(
+  app: App,
+  sel: ReadingSelection
+): Promise<ApplyOutcome> {
+  return editFile(app, sel, (data) => rewriteSourceRemoving(data, sel));
+}
+
+async function editFile(
+  app: App,
+  sel: ReadingSelection,
+  rewrite: (data: string) => { text?: string; error?: string }
+): Promise<ApplyOutcome> {
   const file = app.vault.getFileByPath(sel.path);
   if (file === null) return { ok: false, reason: "that note is no longer open" };
 
@@ -232,7 +341,7 @@ export async function applyReadingHighlight(
   // process() is an atomic read-modify-write, so a concurrent sync cannot
   // interleave between our read and our write.
   await app.vault.process(file, (data: string) => {
-    const result = rewriteSource(data, sel, prefix, suffix);
+    const result = rewrite(data);
     if (result.error !== undefined || result.text === undefined) {
       failure = result.error ?? "could not place that selection";
       return data;
@@ -275,7 +384,7 @@ export class ReadingSelectionTracker {
 
 export function notifyOutcome(outcome: ApplyOutcome, colour: string): void {
   if (outcome.ok) {
-    new Notice(`Highlighted with ${colour}`);
+    new Notice(colour === "" ? "Highlight removed" : `Highlighted with ${colour}`);
     return;
   }
   const reason = outcome.reason ?? "could not place that selection";

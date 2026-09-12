@@ -7,6 +7,7 @@ import {
   highlightPrefix,
   type ReadingSelection,
   rewriteSource,
+  rewriteSourceRemoving,
 } from "./readingModeHighlight";
 
 const MARK = '<mark style="background: #A28AE5A6;">';
@@ -185,5 +186,58 @@ describe("canonicalHex", () => {
     expect(highlightPrefix("inline-styles", "Purple", "#a28ae5a6")).toBe(
       '<mark style="background: #A28AE5A6;">'
     );
+  });
+});
+
+describe("rewriteSourceRemoving", () => {
+  const inMark = (over = {}) =>
+    sel({
+      lineStart: 0,
+      lineEnd: 0,
+      mark: { text: "clonal", occurrence: 0, count: 1 },
+      ...over,
+    });
+
+  it("strips the tags and leaves the words", () => {
+    const doc = `A ${MARK}clonal${END} expansion.`;
+    expect(rewriteSourceRemoving(doc, inMark()).text).toBe("A clonal expansion.");
+  });
+
+  it("removes the highlight that was selected, not the first", () => {
+    const doc = `${MARK}clonal${END} and ${MARK}clonal${END}`;
+    const out = rewriteSourceRemoving(
+      doc,
+      inMark({ mark: { text: "clonal", occurrence: 1, count: 2 } })
+    );
+    expect(out.text).toBe(`${MARK}clonal${END} and clonal`);
+  });
+
+  it("removes a css-classes highlight too", () => {
+    const doc = '<mark class="hltr-yellow">clonal</mark> here';
+    expect(rewriteSourceRemoving(doc, inMark()).text).toBe("clonal here");
+  });
+
+  it("refuses when the source and the render disagree", () => {
+    const doc = `${MARK}clonal${END} only one here`;
+    const out = rewriteSourceRemoving(
+      doc,
+      inMark({ mark: { text: "clonal", occurrence: 1, count: 2 } })
+    );
+    expect(out.text).toBeUndefined();
+    expect(out.error).toMatch(/do not match what is rendered/);
+  });
+
+  it("refuses when the selection is not in a highlight at all", () => {
+    const out = rewriteSourceRemoving("plain text", sel({ mark: undefined }));
+    expect(out.error).toMatch(/not inside a highlight/);
+  });
+
+  it("leaves text containing regex metacharacters alone", () => {
+    const doc = `${MARK}a.b(c)${END} tail`;
+    const out = rewriteSourceRemoving(
+      doc,
+      inMark({ mark: { text: "a.b(c)", occurrence: 0, count: 1 } })
+    );
+    expect(out.text).toBe("a.b(c) tail");
   });
 });

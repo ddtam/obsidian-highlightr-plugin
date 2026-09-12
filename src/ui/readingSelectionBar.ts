@@ -20,14 +20,17 @@ import type { ReadingSelection } from "src/plugin/readingModeHighlight";
 export class ReadingSelectionBar {
   private el: HTMLElement | null = null;
   private onPick: (colour: string) => void;
+  private onErase: () => void;
   private colours: () => { name: string; hex: string }[];
 
   constructor(
     colours: () => { name: string; hex: string }[],
-    onPick: (colour: string) => void
+    onPick: (colour: string) => void,
+    onErase: () => void
   ) {
     this.colours = colours;
     this.onPick = onPick;
+    this.onErase = onErase;
   }
 
   /** Place the bar against the current selection, creating it if needed. */
@@ -37,18 +40,34 @@ export class ReadingSelectionBar {
     if (swatches.length === 0) return;
 
     const bar = document.body.createDiv({ cls: "highlightr-reading-bar" });
+
+    // pointerdown, not click: on a phone the tap that collapses the selection
+    // can also move focus, and the click sometimes never lands.
+    const on = (el: HTMLElement, run: () => void) =>
+      el.addEventListener("pointerdown", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.hide();
+        run();
+      });
+
     for (const { name, hex } of swatches) {
       const swatch = bar.createEl("button", { cls: "highlightr-reading-swatch" });
       swatch.style.background = hex;
       swatch.setAttribute("aria-label", name);
-      // pointerdown, not click: on a phone the tap that collapses the
-      // selection can also move focus, and click sometimes never lands.
-      swatch.addEventListener("pointerdown", (evt) => {
-        evt.preventDefault();
-        evt.stopPropagation();
-        this.hide();
-        this.onPick(name);
+      on(swatch, () => this.onPick(name));
+    }
+
+    // Only when there is something to remove. Offering an eraser over plain
+    // text would be a control that cannot do anything, and on a bar this
+    // small every slot should be worth its width.
+    if (selection.mark !== undefined) {
+      const eraser = bar.createEl("button", {
+        cls: "highlightr-reading-swatch highlightr-reading-eraser",
+        text: "\u00d7",
       });
+      eraser.setAttribute("aria-label", "Remove highlight");
+      on(eraser, () => this.onErase());
     }
 
     this.el = bar;
