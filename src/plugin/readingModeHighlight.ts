@@ -258,6 +258,88 @@ export function rewriteSourceRemoving(
 }
 
 /**
+ * Swap the opening tag of the highlight the selection sits in.
+ *
+ * Recolouring rather than remove-then-add: two writes would be two chances
+ * for the note to move underneath, and wrapping a mark that is already there
+ * would nest one inside the other, which renders as a highlight and reads as
+ * a mess in the source.
+ */
+export function rewriteSourceRetagging(
+  data: string,
+  sel: ReadingSelection,
+  prefix: string
+): { text?: string; error?: string } {
+  const mark = sel.mark;
+  if (mark === undefined) {
+    return { error: "that selection is not inside a highlight" };
+  }
+
+  const lines = data.split("\n");
+  if (sel.lineEnd >= lines.length) {
+    return { error: "the note changed since that selection was made" };
+  }
+
+  const slice = lines.slice(sel.lineStart, sel.lineEnd + 1).join("\n");
+  const found = slice.match(markPattern(mark.text));
+  if (found === null || found.length !== mark.count) {
+    return {
+      error:
+        "the highlights in the source do not match what is rendered, so the " +
+        "right one cannot be identified",
+    };
+  }
+
+  let seen = -1;
+  const patched = slice.replace(markPattern(mark.text), (whole) => {
+    seen++;
+    return seen === mark.occurrence ? `${prefix}${mark.text}</mark>` : whole;
+  });
+
+  const before = lines.slice(0, sel.lineStart).join("\n");
+  const after = lines.slice(sel.lineEnd + 1).join("\n");
+  return {
+    text: [
+      ...(sel.lineStart > 0 ? [before] : []),
+      patched,
+      ...(sel.lineEnd + 1 < lines.length ? [after] : []),
+    ].join("\n"),
+  };
+}
+
+/**
+ * Describe an existing highlight that was tapped, with no selection involved.
+ *
+ * Tapping is how a reader reaches a highlight they have already made: on a
+ * phone, selecting text inside one just to change it is fiddly, and the mark
+ * already knows its own extent.
+ */
+export function describeMarkElement(mark: HTMLElement): ReadingSelection | null {
+  const block = mark.closest<HTMLElement>("[data-hl-line-start]");
+  if (block === null) return null;
+
+  const path = block.dataset[PATH];
+  const lineStart = Number(block.dataset[LINE_START]);
+  const lineEnd = Number(block.dataset[LINE_END]);
+  if (path === undefined || !Number.isFinite(lineStart) || !Number.isFinite(lineEnd)) {
+    return null;
+  }
+
+  const described = describeMark(block, mark);
+  if (described === undefined) return null;
+
+  return {
+    path,
+    lineStart,
+    lineEnd,
+    text: described.text,
+    occurrence: described.occurrence,
+    renderedCount: described.count,
+    mark: described,
+  };
+}
+
+/**
  * Wrap the described selection in the source file.
  *
  * The safety property lives in one comparison: the source slice must contain
@@ -321,6 +403,15 @@ export async function applyReadingHighlight(
   return editFile(app, sel, (data) => rewriteSource(data, sel, prefix, suffix));
 }
 
+/** Change the colour of the highlight the described selection sits in. */
+export async function recolourReadingHighlight(
+  app: App,
+  sel: ReadingSelection,
+  prefix: string
+): Promise<ApplyOutcome> {
+  return editFile(app, sel, (data) => rewriteSourceRetagging(data, sel, prefix));
+}
+
 /** Remove the highlight the described selection sits in. */
 export async function removeReadingHighlight(
   app: App,
@@ -363,6 +454,11 @@ async function editFile(
  */
 export class ReadingSelectionTracker {
   private last: ReadingSelection | null = null;
+
+  /** Remember a highlight reached by tapping rather than by selecting. */
+  adopt(described: ReadingSelection): void {
+    this.last = described;
+  }
 
   record(sel: Selection | null): void {
     const described = describeSelection(sel);

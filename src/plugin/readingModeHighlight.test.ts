@@ -8,6 +8,7 @@ import {
   type ReadingSelection,
   rewriteSource,
   rewriteSourceRemoving,
+  rewriteSourceRetagging,
 } from "./readingModeHighlight";
 
 const MARK = '<mark style="background: #A28AE5A6;">';
@@ -239,5 +240,50 @@ describe("rewriteSourceRemoving", () => {
       inMark({ mark: { text: "a.b(c)", occurrence: 0, count: 1 } })
     );
     expect(out.text).toBe("a.b(c) tail");
+  });
+});
+
+describe("rewriteSourceRetagging", () => {
+  const GREEN = '<mark style="background: #5FB236A6;">';
+  const inMark = (over = {}) =>
+    sel({
+      lineStart: 0,
+      lineEnd: 0,
+      mark: { text: "clonal", occurrence: 0, count: 1 },
+      ...over,
+    });
+
+  it("swaps the opening tag and keeps the words", () => {
+    const doc = `A ${MARK}clonal${END} expansion.`;
+    expect(rewriteSourceRetagging(doc, inMark(), GREEN).text).toBe(
+      `A ${GREEN}clonal${END} expansion.`
+    );
+  });
+
+  // The reason recolouring exists rather than remove-then-add.
+  it("never nests one highlight inside another", () => {
+    const doc = `${MARK}clonal${END}`;
+    const out = rewriteSourceRetagging(doc, inMark(), GREEN).text ?? "";
+    expect(out.match(/<mark/g)).toHaveLength(1);
+  });
+
+  it("retags the one that was tapped", () => {
+    const doc = `${MARK}clonal${END} and ${MARK}clonal${END}`;
+    const out = rewriteSourceRetagging(
+      doc,
+      inMark({ mark: { text: "clonal", occurrence: 1, count: 2 } }),
+      GREEN
+    );
+    expect(out.text).toBe(`${MARK}clonal${END} and ${GREEN}clonal${END}`);
+  });
+
+  it("refuses when source and render disagree", () => {
+    const out = rewriteSourceRetagging(
+      `${MARK}clonal${END}`,
+      inMark({ mark: { text: "clonal", occurrence: 1, count: 2 } }),
+      GREEN
+    );
+    expect(out.text).toBeUndefined();
+    expect(out.error).toMatch(/do not match what is rendered/);
   });
 });

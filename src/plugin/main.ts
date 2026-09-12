@@ -13,7 +13,9 @@ import {
   applyReadingHighlight,
   HIGHLIGHT_SUFFIX,
   highlightPrefix,
+  describeMarkElement,
   notifyOutcome,
+  recolourReadingHighlight,
   removeReadingHighlight,
   ReadingSelectionTracker,
   stampSourceLines,
@@ -72,6 +74,31 @@ export default class HighlightrPlugin extends Plugin {
       this.readingSelection.record(selection);
       this.updateReadingBar(selection);
     });
+    // Tapping a highlight opens the same bar. On a phone, selecting text
+    // inside a highlight just to change it is fiddly, and the mark already
+    // knows its own extent, so a tap is the natural gesture.
+    this.registerDomEvent(document, "click", (evt: MouseEvent) => {
+      if (!barSuitsPlatform(this.settings.readingBar)) return;
+      const target = evt.target;
+      if (!(target instanceof HTMLElement)) return;
+      // Not the bar's own buttons, and not while a selection is up: that is
+      // the selection flow, which has already placed the bar.
+      if (target.closest(".highlightr-reading-bar")) return;
+      if (window.getSelection()?.isCollapsed === false) return;
+
+      const mark = target.closest("mark");
+      const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (mark === null || !view || view.getMode() !== "preview") {
+        this.readingBar.hide();
+        return;
+      }
+
+      const described = describeMarkElement(mark);
+      if (described === null || described.path !== view.file?.path) return;
+      this.readingSelection.adopt(described);
+      this.readingBar.show(described, mark.getBoundingClientRect());
+    });
+
     // A bar pinned to a viewport position is wrong the moment the page moves.
     this.registerDomEvent(document, "scroll", () => this.readingBar.hide(), {
       capture: true,
@@ -145,12 +172,13 @@ export default class HighlightrPlugin extends Plugin {
       name,
       this.settings.highlighters[name]
     );
-    void applyReadingHighlight(
-      this.app,
-      selection,
-      prefix,
-      HIGHLIGHT_SUFFIX
-    ).then((outcome) => notifyOutcome(outcome, name));
+    // Already highlighted: swap the tag rather than wrapping a mark in a
+    // mark, which is what upstream's insertion path would have produced.
+    const done =
+      selection.mark === undefined
+        ? applyReadingHighlight(this.app, selection, prefix, HIGHLIGHT_SUFFIX)
+        : recolourReadingHighlight(this.app, selection, prefix);
+    void done.then((outcome) => notifyOutcome(outcome, name));
   }
 
   /** Remove the highlight the remembered reading-mode selection sits in. */

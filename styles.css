@@ -366,11 +366,21 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
 
 /* Obsidian's mobile stylesheet gives .setting-item-control the full row and
    packs it from the left, which is right for a stacked layout and wrong for
-   the horizontal one these rows keep. Push it to the end of the row. */
+   the horizontal one these rows keep. Push it to the end of the row.
+   min-width: 0 on both children matters: a flex item defaults to min-content
+   width and refuses to shrink below it, which is what let a long colour name
+   push the row wider than the screen and turn the settings pane into a
+   horizontal scroller. */
 .highlighter-item-draggable .setting-item-control {
   margin-left: auto;
   justify-content: flex-end;
   flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.highlighter-item-draggable {
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .is-mobile .highlighter-item-draggable .setting-item-control {
