@@ -5,6 +5,6 @@
   "minAppVersion": "0.12.8",
   "description": "A minimal and aesthetically pleasing highlighting menu that makes color-coded highlighting much easier with a configurable assortment of highlight colors 🎨. Fork: repairs the settings tab.",
   "author": "chetachi, forked by Derek Tam",
-  "authorUrl": "https://github.com/ddtam/obsidian-highlightr-plus",
+  "authorUrl": "https://github.com/ddtam/obsidian-highlightr-plugin",
   "isDesktopOnly": false
 }
