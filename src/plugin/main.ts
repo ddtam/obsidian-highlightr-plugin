@@ -1,4 +1,12 @@
-import { Editor, MarkdownView, Menu, Notice, Plugin, PluginManifest } from "obsidian";
+import {
+  Editor,
+  MarkdownView,
+  Menu,
+  Notice,
+  Platform,
+  Plugin,
+  PluginManifest,
+} from "obsidian";
 import { wait } from "src/utils/util";
 import addIcons from "src/icons/customIcons";
 import { HighlightrSettingTab } from "../settings/settingsTab";
@@ -96,13 +104,21 @@ export default class HighlightrPlugin extends Plugin {
       const described = describeMarkElement(mark);
       if (described === null || described.path !== view.file?.path) return;
       this.readingSelection.adopt(described);
-      this.readingBar.show(described, mark.getBoundingClientRect());
+      this.readingBar.show(described, mark.getBoundingClientRect(), "tap");
     });
 
-    // A bar pinned to a viewport position is wrong the moment the page moves.
-    this.registerDomEvent(document, "scroll", () => this.readingBar.hide(), {
-      capture: true,
-    });
+    // An anchored bar is wrong the moment the page moves, so it goes. A
+    // docked one is not anchored to anything that scrolls, and taking it away
+    // mid-scroll would mean losing a selection just for moving the page to
+    // see what is being highlighted.
+    this.registerDomEvent(
+      document,
+      "scroll",
+      () => {
+        if (!Platform.isMobile) this.readingBar.hide();
+      },
+      { capture: true }
+    );
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", () => {
         this.readingBar.hide();
@@ -145,13 +161,20 @@ export default class HighlightrPlugin extends Plugin {
     // Only while a selection is actually up. The cache deliberately outlives
     // a collapse so the palette still works, but a bar floating over nothing
     // would just be litter.
+    //
+    // A bar opened by tapping a highlight is exempt. On iOS a tap produces a
+    // collapsed selectionchange that can arrive after the click, so hiding
+    // unconditionally here undid the tap immediately: single taps appeared
+    // to do nothing, and only a double tap worked, because that selects a
+    // word and came back through the selection path instead. Double tap is
+    // also iOS's own gesture, so it was never ours to use.
     if (
       described === null ||
       selection === null ||
       selection.isCollapsed ||
       selection.rangeCount === 0
     ) {
-      this.readingBar.hide();
+      if (this.readingBar.dismissedBySelection) this.readingBar.hide();
       return;
     }
 

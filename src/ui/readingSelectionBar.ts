@@ -17,8 +17,12 @@ import type { ReadingSelection } from "src/plugin/readingModeHighlight";
  * Nothing here can add to the iOS selection menu. That bar belongs to the
  * WKWebView, and only the host app could extend it.
  */
+/** Why the bar is up, which decides what is allowed to take it down. */
+export type BarSource = "selection" | "tap";
+
 export class ReadingSelectionBar {
   private el: HTMLElement | null = null;
+  private source: BarSource = "selection";
   private onPick: (colour: string) => void;
   private onErase: () => void;
   private colours: () => { name: string; hex: string }[];
@@ -33,9 +37,10 @@ export class ReadingSelectionBar {
     this.onErase = onErase;
   }
 
-  /** Place the bar against the current selection, creating it if needed. */
-  show(selection: ReadingSelection, rect: DOMRect): void {
+  /** Place the bar for a selection or a tapped highlight. */
+  show(selection: ReadingSelection, rect: DOMRect, source: BarSource = "selection"): void {
     this.hide();
+    this.source = source;
     const swatches = this.colours();
     if (swatches.length === 0) return;
 
@@ -71,7 +76,22 @@ export class ReadingSelectionBar {
     }
 
     this.el = bar;
-    this.position(bar, rect);
+    // Docked on a phone rather than floated against the selection. iOS places
+    // its own selection menu above or below depending on the room available,
+    // so any position next to the selection is one it may also choose, and
+    // the two overlap. The bottom of the screen is somewhere iOS never puts
+    // it, and is where a thumb already is. It also survives scrolling, which
+    // an anchored bar cannot.
+    if (Platform.isMobile) {
+      bar.addClass("is-docked");
+    } else {
+      this.position(bar, rect);
+    }
+  }
+
+  /** Whether a collapsing selection should take this bar down. */
+  get dismissedBySelection(): boolean {
+    return this.source === "selection";
   }
 
   /**

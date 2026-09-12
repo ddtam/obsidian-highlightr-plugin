@@ -905,6 +905,17 @@ PICKR 1.8.2 MIT | https://github.com/Simonwep/pickr
   border-color: var(--interactive-accent);
 }
 
+/* Docked to the bottom on a phone: see the comment in readingSelectionBar.ts
+   for why anywhere near the selection is contested space on iOS. */
+.highlightr-reading-bar.is-docked {
+  top: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  max-width: calc(100vw - 24px);
+  box-shadow: var(--shadow-l);
+}
+
 /* The eraser is a control rather than a colour, so it reads as one. */
 .highlightr-reading-eraser {
   background: var(--background-primary);
