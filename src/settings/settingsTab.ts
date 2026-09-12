@@ -103,11 +103,31 @@ export class HighlightrSettingTab extends PluginSettingTab {
     valueInput.setPlaceholder("Color hex code");
     valueInput.inputEl.addClass("highlighter-settings-value");
 
+    // Pickr replaces this element in place, so it needs the element itself.
+    // Upstream passed the selector `.highlightr-color-picker` instead, and
+    // Pickr resolves a selector against `document`. Obsidian builds a settings
+    // tab before attaching it, so under `renderTab` the query found nothing and
+    // Pickr threw on `null.parentNode` inside `_finalBuild`, taking out
+    // everything display() had not yet rendered: the whole colour list and
+    // every control below it. Holding the reference sidesteps the question of
+    // whether the tree is attached, because a button has a parent either way.
+    let pickerButtonEl: HTMLElement | null = null;
+
     highlighterSetting
       .addButton((button) => {
         button.setClass("highlightr-color-picker");
+        pickerButtonEl = button.buttonEl;
       })
       .then(() => {
+        if (pickerButtonEl === null) {
+          // Nothing to attach to, and throwing here would cost the rest of the
+          // settings tab, which is the failure being fixed.
+          console.error(
+            "Highlightr: colour picker button was never created; skipping the picker."
+          );
+          return;
+        }
+
         let input = valueInput.inputEl;
         let currentColor = valueInput.inputEl.value || null;
 
@@ -117,7 +137,7 @@ export class HighlightrSettingTab extends PluginSettingTab {
 
         let colorHex;
         let pickrCreate = new Pickr({
-          el: ".highlightr-color-picker",
+          el: pickerButtonEl,
           theme: "nano",
           swatches: colorMap,
           defaultRepresentation: "HEXA",

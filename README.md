@@ -1,3 +1,11 @@
+> **This is a fork.** Upstream is [chetachiezikeuzor/Highlightr-Plugin](https://github.com/chetachiezikeuzor/Highlightr-Plugin), last released 1.2.2 in August 2022 and unmaintained since. All of the plugin below is its author's work.
+>
+> **What the fork changes.** The settings tab is unusable on current Obsidian: it renders the header and the two dropdowns and nothing else. Pickr was given a CSS selector for its target element, and Pickr resolves a selector against `document`, but Obsidian builds a settings tab before attaching it, so the query returned `null` and Pickr threw on `null.parentNode`. Everything `display()` had not yet rendered went with it, which is the entire colour list. The fork passes the element itself.
+>
+> **It keeps upstream's plugin id**, so it replaces the community build in place rather than sitting beside it. Uninstall the community version first, keeping a copy of `data.json`, then install this through BRAT and restore it. The version line starts at `1.3.0-plus.N` because `1.2.2-plus.N` would rank *below* upstream's 1.2.2 in semver.
+>
+> Highlight markup is unchanged and checked on every build, both `<mark style="background: #HEX;">` and `<mark class="hltr-name">`, because automation elsewhere reads it.
+
 # Highlightr-Plugin
 
 ![Highlightr-Plugin Downloads](https://img.shields.io/github/downloads/chetachiezikeuzor/Highlightr-Plugin/total.svg)

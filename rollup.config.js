@@ -23,7 +23,8 @@ const output = [
       format: "cjs",
       exports: "default",
       banner,
-      sourcemap: "inline",
+      // Inline sourcemaps quadrupled the shipped file, 146 KB to 608 KB.
+      sourcemap: isProd ? false : "inline",
     },
     external: ["obsidian"],
     plugins: [
