@@ -774,3 +774,34 @@ PICKR 1.8.2 MIT | https://github.com/Simonwep/pickr
     url('data:image/svg+xml;utf8, <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><path fill="white" d="M1,0H2V1H1V0ZM0,1H1V2H0V1Z"/><path fill="gray" d="M0,0H1V1H0V0ZM1,1H2V2H1V1Z"/></svg>');
   background-size: 100%, 0.25em;
 }
+
+/* The reading-mode swatch bar. Fixed to the viewport because it is placed
+   against a selection rectangle, which is viewport-relative; any scroll
+   dismisses it rather than trying to follow. */
+.highlightr-reading-bar {
+  position: fixed;
+  z-index: var(--layer-menu);
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: var(--shadow-s);
+}
+
+.highlightr-reading-swatch {
+  /* 34px square: comfortably past the ~28px a thumb needs, and small enough
+     that eight colours still fit across a phone in portrait. */
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.highlightr-reading-swatch:hover {
+  border-color: var(--interactive-accent);
+}

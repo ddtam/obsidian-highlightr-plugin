@@ -12,8 +12,19 @@ export interface Highlighters {
   [color: string]: string;
 }
 
+export const READING_BAR_MODES = ["mobile", "always", "never"] as const;
+export type ReadingBarMode = (typeof READING_BAR_MODES)[number];
+
 export interface HighlightrSettings {
   highlighterStyle: string;
+  /**
+   * When to show the swatch bar beside a selection in reading mode.
+   *
+   * Defaults to mobile: on a phone it replaces a three-step trip through the
+   * command palette, while on a desktop the palette and a hotkey are already
+   * one step and a bar appearing on every selection is mostly in the way.
+   */
+  readingBar: ReadingBarMode;
   highlighterMethods: string;
   highlighters: Highlighters;
   highlighterOrder: string[];
@@ -21,6 +32,7 @@ export interface HighlightrSettings {
 
 const DEFAULT_SETTINGS: HighlightrSettings = {
   highlighterStyle: "none",
+  readingBar: "mobile",
   highlighterMethods: "inline-styles",
   highlighters: {
     Pink: "#FFB8EBA6",

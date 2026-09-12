@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   describeSelection,
+  HIGHLIGHT_SUFFIX,
+  highlightPrefix,
   type ReadingSelection,
   rewriteSource,
 } from "./readingModeHighlight";
@@ -143,5 +145,25 @@ describe("describeSelection", () => {
   it("ignores whitespace", () => {
     const el = block("a   b");
     expect(describeSelection(select(el.firstChild as Text, 1, 4))).toBeNull();
+  });
+});
+
+describe("highlightPrefix", () => {
+  // The exact bytes automation greps for. If either of these changes, a flag
+  // pipeline stops seeing highlights and nothing errors anywhere.
+  it("emits the inline-styles template exactly", () => {
+    expect(highlightPrefix("inline-styles", "Purple", "#A28AE5A6")).toBe(
+      '<mark style="background: #A28AE5A6;">'
+    );
+  });
+
+  it("emits the css-classes template exactly", () => {
+    expect(highlightPrefix("css-classes", "Purple", "#A28AE5A6")).toBe(
+      '<mark class="hltr-purple">'
+    );
+  });
+
+  it("closes with a plain mark tag", () => {
+    expect(HIGHLIGHT_SUFFIX).toBe("</mark>");
   });
 });

@@ -9,6 +9,7 @@ import {
 import Pickr from "@simonwep/pickr";
 import Sortable from "sortablejs";
 import { HIGHLIGHTER_METHODS, HIGHLIGHTER_STYLES } from "./settingsData";
+import type { ReadingBarMode } from "./settingsData";
 import { setAttributes } from "src/utils/setAttributes";
 
 export class HighlightrSettingTab extends PluginSettingTab {
@@ -95,6 +96,28 @@ export class HighlightrSettingTab extends PluginSettingTab {
     };
 
     stylesSetting.infoEl.appendChild(styleDemo());
+
+    new Setting(containerEl)
+      .setName("Highlight bar in reading mode")
+      .setDesc(
+        "Reading mode can highlight without switching to editing mode. This " +
+          "chooses when a row of colour swatches appears beside a selection. " +
+          "On a phone it replaces select, open the command palette, find the " +
+          "colour by name; on a desktop the palette already takes one step."
+      )
+      .addDropdown((dropdown) => {
+        dropdown.addOptions({
+          mobile: "On mobile only",
+          always: "Always",
+          never: "Never, use the command palette",
+        });
+        dropdown
+          .setValue(this.plugin.settings.readingBar)
+          .onChange((value: ReadingBarMode) => {
+            this.plugin.settings.readingBar = value;
+            this.plugin.saveSettings();
+          });
+      });
 
     const highlighterSetting = new Setting(containerEl);
 

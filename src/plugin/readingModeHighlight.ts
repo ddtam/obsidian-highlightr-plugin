@@ -12,6 +12,27 @@ import { App, MarkdownPostProcessorContext, Notice } from "obsidian";
  * edit mode, which is what the reader does today anyway.
  */
 
+/**
+ * The opening tag a highlight is wrapped in.
+ *
+ * One home for this, because two callers now need it, the editor commands and
+ * the reading-mode path, and because automation elsewhere greps for the exact
+ * string this produces. A copy in each caller is a second place for the
+ * markup to drift, and a drift here is silent: highlights keep working and
+ * stop being found.
+ */
+export function highlightPrefix(
+  method: string,
+  name: string,
+  hex: string
+): string {
+  return method === "css-classes"
+    ? `<mark class="hltr-${name.toLowerCase()}">`
+    : `<mark style="background: ${hex};">`;
+}
+
+export const HIGHLIGHT_SUFFIX = "</mark>";
+
 /** Where a reading-mode selection came from, recorded when it is made. */
 export interface ReadingSelection {
   path: string;

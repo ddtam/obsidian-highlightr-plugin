@@ -11,10 +11,16 @@ import { createHighlighterIcons } from "src/icons/customIcons";
 import { createStyles } from "src/utils/createStyles";
 import {
   applyReadingHighlight,
+  HIGHLIGHT_SUFFIX,
+  highlightPrefix,
   notifyOutcome,
   ReadingSelectionTracker,
   stampSourceLines,
 } from "src/plugin/readingModeHighlight";
+import {
+  barSuitsPlatform,
+  ReadingSelectionBar,
+} from "src/ui/readingSelectionBar";
 import { EnhancedApp, EnhancedEditor } from "src/settings/types";
 
 export default class HighlightrPlugin extends Plugin {
@@ -23,6 +29,7 @@ export default class HighlightrPlugin extends Plugin {
   manifest: PluginManifest;
   settings: HighlightrSettings;
   readingSelection = new ReadingSelectionTracker();
+  readingBar: ReadingSelectionBar;
 
   async onload() {
     console.log(`Highlightr v${this.manifest.version} loaded`);
@@ -45,9 +52,31 @@ export default class HighlightrPlugin extends Plugin {
     // remembers a selection past the point where it collapses, which is what
     // makes the feature usable on a phone.
     this.registerMarkdownPostProcessor(stampSourceLines);
+
+    this.readingBar = new ReadingSelectionBar(
+      () =>
+        this.settings.highlighterOrder.map((name) => ({
+          name,
+          hex: this.settings.highlighters[name],
+        })),
+      (name) => this.highlightSelectionInReadingMode(name)
+    );
+
     this.registerDomEvent(document, "selectionchange", () => {
-      this.readingSelection.record(window.getSelection());
+      const selection = window.getSelection();
+      this.readingSelection.record(selection);
+      this.updateReadingBar(selection);
     });
+    // A bar pinned to a viewport position is wrong the moment the page moves.
+    this.registerDomEvent(document, "scroll", () => this.readingBar.hide(), {
+      capture: true,
+    });
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => {
+        this.readingBar.hide();
+        this.readingSelection.forget();
+      })
+    );
 
     this.addSettingTab(new HighlightrSettingTab(this.app, this));
 
@@ -69,6 +98,54 @@ export default class HighlightrPlugin extends Plugin {
     });
     this.generateCommands(this.editor);
     this.refresh();
+  }
+
+  /** Show or hide the swatch bar for the selection that just changed. */
+  private updateReadingBar(selection: Selection | null): void {
+    if (!barSuitsPlatform(this.settings.readingBar)) return;
+
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const described =
+      view && view.getMode() === "preview"
+        ? this.readingSelection.current(view.file?.path)
+        : null;
+
+    // Only while a selection is actually up. The cache deliberately outlives
+    // a collapse so the palette still works, but a bar floating over nothing
+    // would just be litter.
+    if (
+      described === null ||
+      selection === null ||
+      selection.isCollapsed ||
+      selection.rangeCount === 0
+    ) {
+      this.readingBar.hide();
+      return;
+    }
+
+    this.readingBar.show(
+      described,
+      selection.getRangeAt(0).getBoundingClientRect()
+    );
+  }
+
+  /** Apply a colour to the remembered reading-mode selection. */
+  private highlightSelectionInReadingMode(name: string): void {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const selection = this.readingSelection.current(view?.file?.path);
+    if (selection === null) return;
+
+    const prefix = highlightPrefix(
+      this.settings.highlighterMethods,
+      name,
+      this.settings.highlighters[name]
+    );
+    void applyReadingHighlight(
+      this.app,
+      selection,
+      prefix,
+      HIGHLIGHT_SUFFIX
+    ).then((outcome) => notifyOutcome(outcome, name));
   }
 
   reloadStyles(settings: HighlightrSettings) {
@@ -159,11 +236,12 @@ export default class HighlightrPlugin extends Plugin {
         highlight: {
           char: 34,
           line: 0,
-          prefix:
-            this.settings.highlighterMethods === "css-classes"
-              ? `<mark class="hltr-${highlighterKey.toLowerCase()}">`
-              : `<mark style="background: ${this.settings.highlighters[highlighterKey]};">`,
-          suffix: "</mark>",
+          prefix: highlightPrefix(
+            this.settings.highlighterMethods,
+            highlighterKey,
+            this.settings.highlighters[highlighterKey]
+          ),
+          suffix: HIGHLIGHT_SUFFIX,
         },
       };
 
