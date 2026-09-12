@@ -369,6 +369,23 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
   gap: 2px;
 }
 
+/* Obsidian's button padding is sized for a word, not a 16px glyph, so three
+   of them took most of the row's width. Square them off to the icon. */
+.is-mobile .highlighter-item-draggable .setting-item-control button.HighlightrSettingsButton {
+  width: 30px;
+  height: 30px;
+  min-width: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.is-mobile .highlighter-item-draggable .setting-item-control button.HighlightrSettingsButton svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* The add-a-colour row has two text inputs and a picker; side by side on a
    phone each one is too narrow to type a hex into. */
 .is-mobile .highlighterplugin-setting-item .setting-item-control {

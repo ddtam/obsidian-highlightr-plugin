@@ -57,8 +57,10 @@ export class HighlightrSettingTab extends PluginSettingTab {
             setTimeout(() => {
               dispatchEvent(new Event("Highlightr-NewCommand"));
             }, 100);
+            // saveSettings already calls saveData with this object; the
+            // second write was redundant and made any save-path bug
+            // show up twice.
             this.plugin.saveSettings();
-            this.plugin.saveData(this.plugin.settings);
             this.display();
           });
       });
@@ -78,8 +80,10 @@ export class HighlightrSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.highlighterStyle)
           .onChange((highlighterStyle) => {
             this.plugin.settings.highlighterStyle = highlighterStyle;
+            // saveSettings already calls saveData with this object; the
+            // second write was redundant and made any save-path bug
+            // show up twice.
             this.plugin.saveSettings();
-            this.plugin.saveData(this.plugin.settings);
             this.plugin.refresh();
           });
       });
@@ -116,6 +120,24 @@ export class HighlightrSettingTab extends PluginSettingTab {
           .onChange((value: ReadingBarMode) => {
             this.plugin.settings.readingBar = value;
             this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Readable text on highlights")
+      .setDesc(
+        "Sets highlighted text to black or white, whichever contrasts better " +
+          "with the highlight, in reading mode. Some themes force one colour " +
+          "on every rendered highlight, which is unreadable on a pale one. " +
+          "Turn this off to leave the colour to your theme."
+      )
+      .addToggle((toggle) => {
+        toggle
+          .setValue(this.plugin.settings.contrastText)
+          .onChange(async (value) => {
+            this.plugin.settings.contrastText = value;
+            await this.plugin.saveSettings();
+            this.plugin.refresh();
           });
       });
 

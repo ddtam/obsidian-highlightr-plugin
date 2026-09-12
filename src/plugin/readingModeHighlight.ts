@@ -28,7 +28,23 @@ export function highlightPrefix(
 ): string {
   return method === "css-classes"
     ? `<mark class="hltr-${name.toLowerCase()}">`
-    : `<mark style="background: ${hex};">`;
+    : `<mark style="background: ${canonicalHex(hex)};">`;
+}
+
+/**
+ * Uppercase a hex colour, leaving anything else alone.
+ *
+ * CSS does not care, but a reader downstream might: this vault's flag
+ * pipeline matches `<mark style="background: #A28AE5A6;">` literally, and a
+ * lowercase hex is invisible to it while still rendering perfectly. Pickr
+ * makes that easy to hit by accident, since `toHEXA()` builds the RGB bytes
+ * with `toString(16)` and uppercases only the alpha byte, so a colour set
+ * through the picker comes back as `#a28ae5A6`. Normalising here means the
+ * emitted markup is canonical whatever is sitting in data.json.
+ */
+export function canonicalHex(value: string): string {
+  const hex = value.trim();
+  return /^#[0-9a-fA-F]{3,8}$/.test(hex) ? hex.toUpperCase() : hex;
 }
 
 export const HIGHLIGHT_SUFFIX = "</mark>";

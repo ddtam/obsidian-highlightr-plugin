@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canonicalHex,
   describeSelection,
   HIGHLIGHT_SUFFIX,
   highlightPrefix,
@@ -165,5 +166,24 @@ describe("highlightPrefix", () => {
 
   it("closes with a plain mark tag", () => {
     expect(HIGHLIGHT_SUFFIX).toBe("</mark>");
+  });
+});
+
+describe("canonicalHex", () => {
+  // Pickr builds the RGB bytes with toString(16) and uppercases only the
+  // alpha, so a colour set through the picker arrives as #a28ae5A6. A reader
+  // matching the literal string would never see it.
+  it("uppercases what the picker produces", () => {
+    expect(canonicalHex("#a28ae5A6")).toBe("#A28AE5A6");
+  });
+
+  it("leaves a non-hex value alone", () => {
+    expect(canonicalHex("rgba(1, 2, 3, 0.5)")).toBe("rgba(1, 2, 3, 0.5)");
+  });
+
+  it("survives the round trip into the emitted markup", () => {
+    expect(highlightPrefix("inline-styles", "Purple", "#a28ae5a6")).toBe(
+      '<mark style="background: #A28AE5A6;">'
+    );
   });
 });

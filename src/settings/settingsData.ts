@@ -34,6 +34,15 @@ export interface HighlightrSettings {
    * three anyone actually reaches for.
    */
   readingBarColors: string[];
+  /**
+   * Set highlight text to black or white for legibility in reading mode.
+   *
+   * A theme can force one colour on every rendered mark, which is fine until
+   * the highlight behind it is pale. Minimal does exactly this, which is why
+   * a highlight can read correctly while editing and be unreadable while
+   * reading.
+   */
+  contrastText: boolean;
   highlighterMethods: string;
   highlighters: Highlighters;
   highlighterOrder: string[];
@@ -43,6 +52,7 @@ const DEFAULT_SETTINGS: HighlightrSettings = {
   highlighterStyle: "none",
   readingBar: "mobile",
   readingBarColors: [],
+  contrastText: true,
   highlighterMethods: "inline-styles",
   highlighters: {
     Pink: "#FFB8EBA6",
