@@ -283,11 +283,20 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
 
 .highlighter-item-draggable {
   cursor: grab;
-  display: grid;
-  grid-gap: 8px;
-  grid-template-columns: 0.5fr 7fr;
-  align-items: center;
   border-top: 1px solid var(--background-modifier-border);
+}
+
+/* The colour swatch sits inside the setting row rather than beside it.
+   As a sibling it fell outside whatever background the theme paints on
+   .setting-item, so the row's panel visibly stopped short of the icon. */
+.highlighter-item-draggable .setting-item.highlighter-setting-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.highlighter-item-draggable .highlighter-setting-icon {
+  flex: 0 0 auto;
 }
 
 .HighlightrSettingsTabsContainer {
@@ -332,13 +341,6 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
 HIGHLIGHTR SUPPORT
 ----------------------------------------------------------------*/
 
-.hltrDonationSection {
-  width: 65%;
-  height: 50vh;
-  margin: 0 auto;
-  text-align: center;
-  color: var(--text-normal);
-}
 
 .pcr-app .pcr-swatches > button {
   padding: 0;
