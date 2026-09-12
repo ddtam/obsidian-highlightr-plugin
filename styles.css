@@ -364,8 +364,18 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
   opacity: 0.7;
 }
 
+/* Obsidian's mobile stylesheet gives .setting-item-control the full row and
+   packs it from the left, which is right for a stacked layout and wrong for
+   the horizontal one these rows keep. Push it to the end of the row. */
+.highlighter-item-draggable .setting-item-control {
+  margin-left: auto;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
 .is-mobile .highlighter-item-draggable .setting-item-control {
   flex: 0 0 auto;
+  width: auto;
   gap: 2px;
 }
 

@@ -369,30 +369,43 @@ export class HighlightrSettingTab extends PluginSettingTab {
         .setName(highlighter)
         .setDesc(this.plugin.settings.highlighters[highlighter])
         .addButton((button) => {
-          const enabled = this.plugin.settings.readingBarColors;
-          const on = enabled.length === 0 || enabled.includes(highlighter);
+          const shown = (): boolean => {
+            const list = this.plugin.settings.readingBarColors;
+            return list.length === 0 || list.includes(highlighter);
+          };
+          const paint = () => {
+            button.buttonEl.toggleClass("is-off", !shown());
+            button.setTooltip(
+              shown()
+                ? "Shown in the reading-mode bar"
+                : "Hidden from the reading-mode bar"
+            );
+          };
+
           button
             .setClass("HighlightrSettingsButton")
             .setClass("HighlightrSettingsButtonQuick")
-            .setIcon("highlightr-star")
-            .setTooltip(
-              on ? "Shown in the reading-mode bar" : "Hidden from the reading-mode bar"
-            )
+            .setIcon("highlightr-book")
             .onClick(async () => {
+              const current = this.plugin.settings.readingBarColors;
               // Empty means all, so the first exclusion has to write out the
               // full list before removing one from it.
               const list =
-                enabled.length === 0
+                current.length === 0
                   ? [...this.plugin.settings.highlighterOrder]
-                  : [...enabled];
+                  : [...current];
               const at = list.indexOf(highlighter);
               if (at === -1) list.push(highlighter);
               else list.splice(at, 1);
               this.plugin.settings.readingBarColors = list;
               await this.plugin.saveSettings();
-              this.display();
+              // Repaint this one button rather than calling display(). A
+              // rebuild of the whole tab throws the reader back to the top,
+              // which on a phone means scrolling down again for every colour
+              // they want to toggle.
+              paint();
             });
-          if (!on) button.buttonEl.addClass("is-off");
+          paint();
         })
         .addButton((button) => {
           button
