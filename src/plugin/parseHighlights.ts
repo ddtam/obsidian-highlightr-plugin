@@ -20,7 +20,12 @@ export interface ParsedHighlight {
 }
 
 const MARK = /<mark\b([^>]*)>([\s\S]*?)<\/mark>/g;
-const HEX = /background:\s*(#[0-9a-fA-F]{3,8})/;
+// The first hex anywhere in the attributes, not one anchored to `background:`.
+// A half highlight writes `background: linear-gradient(transparent 55%,
+// #A28AE5 55%)`, whose colour is not adjacent to the property name, and an
+// in-progress flag showing as colourless in the panel would be wrong in
+// exactly the view used to find outstanding flags.
+const HEX = /(#[0-9a-fA-F]{3,8})\b/;
 const CLS = /class="hltr-([a-z0-9-]+)"/i;
 
 /**

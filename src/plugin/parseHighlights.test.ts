@@ -72,3 +72,23 @@ describe("highlightColour", () => {
     )).toBeNull();
   });
 });
+
+// The exact string the flag runner writes for an in-progress flag.
+const HALF = '<mark style="background: linear-gradient(transparent 55%, #A28AE5 55%);">phrase</mark>';
+
+describe("in-progress flags (half highlight)", () => {
+  it("reads the colour out of a gradient", () => {
+    const out = parseHighlights(HALF);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ text: "phrase", hex: "#A28AE5" });
+  });
+
+  it("gives the panel a purple swatch rather than an unknown one", () => {
+    const h = parseHighlights(HALF)[0];
+    expect(highlightColour(h, { Purple: "#A28AE5" })).toBe("#A28AE5");
+  });
+
+  it("still ignores one inside a code fence", () => {
+    expect(parseHighlights("```\n" + HALF + "\n```")).toHaveLength(0);
+  });
+});

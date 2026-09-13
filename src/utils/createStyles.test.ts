@@ -78,3 +78,36 @@ describe("paintMarkInk", () => {
     expect(el.querySelector("mark")?.style.color).toBe("");
   });
 });
+
+describe("paintMarkInk on a half highlight", () => {
+  const HALF = 'background: linear-gradient(transparent 55%, #A28AE5 55%);';
+  const settings = { contrastText: true, highlighters: { Purple: "#A28AE5" } } as never;
+
+  const render = (style: string) => {
+    const el = document.createElement("div");
+    el.innerHTML = `<mark style="${style}">x</mark>`;
+    paintMarkInk(el, settings);
+    return el.querySelector("mark") as HTMLElement;
+  };
+
+  // Half the glyph sits over the page background, so neither black nor white
+  // is right; and leaving it unset hands it to Minimal, which paints the
+  // background colour and makes it vanish.
+  it("uses the theme's text colour, not a computed black or white", () => {
+    expect(render(HALF).style.color).toBe("var(--text-normal)");
+  });
+
+  // The code sets `important` here too, and browsers honour it. jsdom's CSS
+  // engine drops the priority specifically for a var() value while keeping it
+  // for a literal, so the solid-colour case below is where that assertion can
+  // actually be made.
+  it("sets the property at all, which jsdom can see", () => {
+    expect(render(HALF).getAttribute("style")).toContain("var(--text-normal)");
+  });
+
+  it("leaves a solid highlight on the computed contrast, with important", () => {
+    const mark = render("background: #A28AE5;");
+    expect(mark.style.color).toBe("rgb(0, 0, 0)");
+    expect(mark.style.getPropertyPriority("color")).toBe("important");
+  });
+});

@@ -81,9 +81,23 @@ export function paintMarkInk(el: HTMLElement, settings: HighlightrSettings): voi
       : Array.from(el.querySelectorAll("mark"));
 
   for (const mark of marks) {
+    const style = mark.getAttribute("style") ?? "";
+
+    // A gradient means the text does not sit on one colour. The flag
+    // pipeline writes a half highlight, transparent over the top and purple
+    // below, so the upper part of every glyph is over the page background and
+    // a computed black or white is wrong for one half whichever is chosen.
+    // It still has to be set rather than skipped: leaving it alone hands the
+    // mark back to the theme, and Minimal paints `color: var(--bg1)`, the
+    // background colour, which is worse than either.
+    if (/gradient/i.test(style)) {
+      mark.style.setProperty("color", "var(--text-normal)", "important");
+      continue;
+    }
+
     // The inline background is authoritative, since that is what the reader
     // sees; a class-based highlight is looked up in the palette instead.
-    const inline = /#[0-9a-fA-F]{3,8}/.exec(mark.getAttribute("style") ?? "");
+    const inline = /#[0-9a-fA-F]{3,8}/.exec(style);
     let hex = inline?.[0] ?? null;
     if (hex === null) {
       const named = Array.from(mark.classList)
