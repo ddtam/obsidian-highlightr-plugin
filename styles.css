@@ -911,7 +911,10 @@ PICKR 1.8.2 MIT | https://github.com/Simonwep/pickr
   top: auto !important;
   left: 50% !important;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  /* The inline `bottom` set when the bar is shown measures Obsidian's mobile
+     navbar, which floats and can be toggled. The safe-area inset is added on
+     top of it here so the home indicator is cleared either way. */
+  margin-bottom: env(safe-area-inset-bottom, 0px);
   max-width: calc(100vw - 24px);
   box-shadow: var(--shadow-l);
 }

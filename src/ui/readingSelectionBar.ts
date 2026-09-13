@@ -84,6 +84,7 @@ export class ReadingSelectionBar {
     // an anchored bar cannot.
     if (Platform.isMobile) {
       bar.addClass("is-docked");
+      bar.style.bottom = `${dockClearance()}px`;
     } else {
       this.position(bar, rect);
     }
@@ -121,6 +122,28 @@ export class ReadingSelectionBar {
   get visible(): boolean {
     return this.el !== null;
   }
+}
+
+/**
+ * How far off the bottom the docked bar has to sit to clear what is there.
+ *
+ * Obsidian's mobile navbar floats above the content and can be shown or
+ * hidden, so a fixed offset is either too small when it is up or a gap when
+ * it is down. Measuring it answers both, and it is measured at the moment the
+ * bar is shown rather than cached, because the navbar's visibility is the
+ * reader's to change between one highlight and the next.
+ */
+function dockClearance(): number {
+  const gap = 12;
+  const safe = 0; // env(safe-area-inset-bottom) is applied in CSS on top.
+  const navbar = document.querySelector<HTMLElement>(".mobile-navbar");
+  if (navbar === null) return gap + safe;
+
+  const rect = navbar.getBoundingClientRect();
+  // Zero height, or sitting off the bottom of the window, means hidden.
+  if (rect.height === 0 || rect.top >= window.innerHeight) return gap + safe;
+
+  return window.innerHeight - rect.top + gap;
 }
 
 /** Whether the bar should be offered at all on this device. */
