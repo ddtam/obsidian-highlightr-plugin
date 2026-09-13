@@ -23,6 +23,8 @@ export type BarSource = "selection" | "tap";
 export class ReadingSelectionBar {
   private el: HTMLElement | null = null;
   private source: BarSource = "selection";
+  private tracking = 0;
+  private dockedAt = -1;
   private onPick: (colour: string) => void;
   private onErase: () => void;
   private colours: () => { name: string; hex: string }[];
@@ -84,7 +86,7 @@ export class ReadingSelectionBar {
     // an anchored bar cannot.
     if (Platform.isMobile) {
       bar.addClass("is-docked");
-      bar.style.bottom = `${dockClearance()}px`;
+      this.trackDock();
     } else {
       this.position(bar, rect);
     }
@@ -114,7 +116,42 @@ export class ReadingSelectionBar {
     )}px`;
   }
 
+  /**
+   * Keep the docked bar sitting on the navbar as the navbar moves.
+   *
+   * Obsidian hides its mobile navbar when you scroll down and brings it back
+   * when you scroll up, animating in and out, so a clearance measured once
+   * when the bar appeared is stale the moment the reader moves the page.
+   * Scroll events alone would miss the animation's own frames, and a
+   * transition listener alone would miss a scroll that never animates, so
+   * this follows it per frame while the bar is up. That is one rect read and
+   * at most one style write per frame, for the few seconds a bar is on
+   * screen, and it stops the instant it goes.
+   */
+  private trackDock(): void {
+    this.dockedAt = -1;
+    const step = () => {
+      if (this.el === null) {
+        this.tracking = 0;
+        return;
+      }
+      const clearance = dockClearance();
+      // Only write when it actually moved: an unconditional write every frame
+      // would invalidate layout on every frame for nothing.
+      if (clearance !== this.dockedAt) {
+        this.dockedAt = clearance;
+        this.el.style.bottom = `${clearance}px`;
+      }
+      this.tracking = requestAnimationFrame(step);
+    };
+    this.tracking = requestAnimationFrame(step);
+  }
+
   hide(): void {
+    if (this.tracking !== 0) {
+      cancelAnimationFrame(this.tracking);
+      this.tracking = 0;
+    }
     this.el?.remove();
     this.el = null;
   }
