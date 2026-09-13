@@ -283,7 +283,14 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
 
 .highlighter-item-draggable {
   cursor: grab;
-  border-top: 1px solid var(--background-modifier-border);
+  /* No rule between rows: each row already sits on its own panel, so a border
+     draws a second boundary a few pixels inside the first. Rows are separated
+     by the gap between panels instead. */
+  border-top: none;
+  /* The swatch and the buttons were flush against the panel's rounded edges.
+     Inset both ends so the row breathes inside its own background. */
+  padding-left: var(--size-4-3);
+  padding-right: var(--size-4-3);
 }
 
 /* The colour swatch sits inside the setting row rather than beside it.
@@ -305,6 +312,13 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
 
 .setting-item.highlighter-setting-item:first-child {
   padding-top: 18px;
+}
+
+/* Obsidian draws its own separator on a .setting-item; inside a row that is
+   already a panel it is the same redundant line. */
+.highlighter-item-draggable .setting-item.highlighter-setting-item {
+  border-top: none;
+  border-bottom: none;
 }
 
 .highlighter-setting-item {
@@ -340,6 +354,13 @@ button:not(.mod-cta):not(.mod-warning).HighlightrSettingsButton.HighlightrSettin
    controls fixed-width at the end. The !important flags are here because the
    rules they beat are Obsidian's own mobile ones, which out-specify anything
    scoped to a plugin's container. */
+.is-mobile .highlighter-item-draggable {
+  /* Narrower than the desktop inset: a phone row has less width to give away,
+     and the buttons are already squared to their icons. */
+  padding-left: var(--size-4-2);
+  padding-right: var(--size-4-2);
+}
+
 .is-mobile .highlighter-item-draggable .setting-item.highlighter-setting-item {
   display: flex !important;
   flex-direction: row !important;
