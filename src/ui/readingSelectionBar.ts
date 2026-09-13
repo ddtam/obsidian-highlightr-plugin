@@ -25,6 +25,9 @@ export class ReadingSelectionBar {
   private source: BarSource = "selection";
   private tracking = 0;
   private dockedAt = -1;
+  private navbar: HTMLElement | null = null;
+  private settled = 0;
+  private wake: (() => void) | null = null;
   private onPick: (colour: string) => void;
   private onErase: () => void;
   private colours: () => { name: string; hex: string }[];
@@ -130,17 +133,54 @@ export class ReadingSelectionBar {
    */
   private trackDock(): void {
     this.dockedAt = -1;
+    // Resolved once. A querySelector per frame was the genuinely wasteful
+    // part of the first version; the rect read is the cheap part.
+    this.navbar = document.querySelector<HTMLElement>(".mobile-navbar");
+
+    // Wake on anything that could move the navbar, and sleep again once it
+    // has stopped. Scroll is the trigger Obsidian uses to show and hide it,
+    // and transitionend catches the tail of the animation if the last scroll
+    // event lands before the movement finishes.
+    this.wake = () => this.runFrames();
+    document.addEventListener("scroll", this.wake, { capture: true, passive: true });
+    document.addEventListener("transitionend", this.wake, { capture: true });
+    this.runFrames();
+  }
+
+  /**
+   * Follow the navbar for as long as it is moving, then stop.
+   *
+   * A frame loop is the only thing that tracks an animation smoothly, but
+   * running one for the whole life of the bar means reading a rect at the
+   * display's refresh rate, 120Hz on this hardware, while nothing is
+   * happening. This runs only while the position is actually changing and
+   * parks itself a fifth of a second after it settles, so a bar sitting on a
+   * still page costs nothing at all.
+   */
+  private runFrames(): void {
+    if (this.tracking !== 0) {
+      this.settled = 0;
+      return;
+    }
     const step = () => {
       if (this.el === null) {
         this.tracking = 0;
         return;
       }
-      const clearance = dockClearance();
-      // Only write when it actually moved: an unconditional write every frame
-      // would invalidate layout on every frame for nothing.
+      const clearance = dockClearance(this.navbar);
       if (clearance !== this.dockedAt) {
         this.dockedAt = clearance;
         this.el.style.bottom = `${clearance}px`;
+        this.settled = 0;
+      } else {
+        this.settled++;
+      }
+      // Roughly 0.2s of no movement at 60Hz, half that at 120Hz. Short
+      // enough to be idle almost always, long enough to ride out the gap
+      // between a scroll ending and the navbar's animation finishing.
+      if (this.settled > 12) {
+        this.tracking = 0;
+        return;
       }
       this.tracking = requestAnimationFrame(step);
     };
@@ -152,6 +192,12 @@ export class ReadingSelectionBar {
       cancelAnimationFrame(this.tracking);
       this.tracking = 0;
     }
+    if (this.wake !== null) {
+      document.removeEventListener("scroll", this.wake, { capture: true });
+      document.removeEventListener("transitionend", this.wake, { capture: true });
+      this.wake = null;
+    }
+    this.navbar = null;
     this.el?.remove();
     this.el = null;
   }
@@ -170,10 +216,9 @@ export class ReadingSelectionBar {
  * bar is shown rather than cached, because the navbar's visibility is the
  * reader's to change between one highlight and the next.
  */
-function dockClearance(): number {
+function dockClearance(navbar: HTMLElement | null): number {
   const gap = 12;
   const safe = 0; // env(safe-area-inset-bottom) is applied in CSS on top.
-  const navbar = document.querySelector<HTMLElement>(".mobile-navbar");
   if (navbar === null) return gap + safe;
 
   const rect = navbar.getBoundingClientRect();
