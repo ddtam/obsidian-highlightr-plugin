@@ -947,3 +947,66 @@ PICKR 1.8.2 MIT | https://github.com/Simonwep/pickr
   font-size: 18px;
   line-height: 1;
 }
+
+/* The highlights panel. Rows are the highlight itself, not the line it sits
+   on, which is the thing search could not give. */
+.highlightr-view {
+  padding: var(--size-4-2);
+}
+
+.highlightr-view-count {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  padding: 0 var(--size-4-2) var(--size-4-2);
+}
+
+.highlightr-view-empty {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  padding: var(--size-4-3);
+}
+
+.highlightr-view-row {
+  display: flex;
+  gap: var(--size-4-2);
+  align-items: flex-start;
+  padding: var(--size-4-2);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+
+.highlightr-view-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* Fixed width and no shrink: a swatch that narrows with a long highlight
+   stops being readable as a colour, which is the one thing it encodes. */
+.highlightr-view-swatch {
+  flex: 0 0 auto;
+  width: 4px;
+  align-self: stretch;
+  min-height: 1.2em;
+  border-radius: 2px;
+  background: var(--background-modifier-border);
+}
+
+.highlightr-view-swatch.is-unknown {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--background-modifier-border) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.highlightr-view-text {
+  font-size: var(--font-ui-small);
+  line-height: var(--line-height-tight);
+  color: var(--text-normal);
+  /* Long highlights are clamped rather than clipped: the first lines are
+     enough to recognise one, and a full paragraph per row would make the
+     panel exactly the wall of prose that search results already are. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

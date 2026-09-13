@@ -1,6 +1,7 @@
 import {
   Editor,
   MarkdownView,
+  TFile,
   Menu,
   Notice,
   Platform,
@@ -32,6 +33,7 @@ import {
   barSuitsPlatform,
   ReadingSelectionBar,
 } from "src/ui/readingSelectionBar";
+import { HIGHLIGHTS_VIEW, HighlightsView } from "src/ui/highlightsView";
 import { EnhancedApp, EnhancedEditor } from "src/settings/types";
 
 export default class HighlightrPlugin extends Plugin {
@@ -129,6 +131,29 @@ export default class HighlightrPlugin extends Plugin {
       })
     );
 
+    this.registerView(
+      HIGHLIGHTS_VIEW,
+      (leaf) => new HighlightsView(leaf, this)
+    );
+    this.addCommand({
+      id: "open-highlights",
+      name: "Open highlights panel",
+      icon: "highlightr-pen",
+      callback: () => void this.openHighlightsPanel(),
+    });
+    // The panel follows the active note, the way Outline does, so it refreshes
+    // when the note changes and when the note it is showing is edited.
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => this.refreshHighlightsPanel())
+    );
+    this.registerEvent(
+      this.app.vault.on("modify", (file) => {
+        for (const view of this.highlightsViews()) {
+          if (file instanceof TFile && view.showing(file)) void view.refresh();
+        }
+      })
+    );
+
     this.addSettingTab(new HighlightrSettingTab(this.app, this));
 
     this.addCommand({
@@ -149,6 +174,29 @@ export default class HighlightrPlugin extends Plugin {
     });
     this.generateCommands(this.editor);
     this.refresh();
+  }
+
+  private highlightsViews(): HighlightsView[] {
+    return this.app.workspace
+      .getLeavesOfType(HIGHLIGHTS_VIEW)
+      .map((leaf) => leaf.view)
+      .filter((v): v is HighlightsView => v instanceof HighlightsView);
+  }
+
+  private refreshHighlightsPanel(): void {
+    for (const view of this.highlightsViews()) void view.refresh();
+  }
+
+  /** Open the panel in the right sidebar, or reveal it if it is already there. */
+  private async openHighlightsPanel(): Promise<void> {
+    const existing = this.app.workspace.getLeavesOfType(HIGHLIGHTS_VIEW);
+    const leaf = existing[0] ?? this.app.workspace.getRightLeaf(false);
+    if (leaf === null) return;
+    if (existing.length === 0) {
+      await leaf.setViewState({ type: HIGHLIGHTS_VIEW, active: true });
+    }
+    await this.app.workspace.revealLeaf(leaf);
+    this.refreshHighlightsPanel();
   }
 
   /** Show or hide the swatch bar for the selection that just changed. */
