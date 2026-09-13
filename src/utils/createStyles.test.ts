@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contrastText } from "./createStyles";
+import { contrastText, paintMarkInk } from "./createStyles";
 
 describe("contrastText", () => {
   it("puts dark ink on a pale highlight", () => {
@@ -28,5 +28,53 @@ describe("contrastText", () => {
   it("declines anything that is not a hex", () => {
     expect(contrastText("rebeccapurple")).toBeNull();
     expect(contrastText("rgb(1,2,3)")).toBeNull();
+  });
+});
+
+describe("paintMarkInk", () => {
+  const settings = {
+    contrastText: true,
+    highlighters: { Yellow: "#FFD400", Purple: "#A28AE5A6" },
+  } as never;
+
+  const render = (html: string) => {
+    const el = document.createElement("div");
+    el.innerHTML = html;
+    paintMarkInk(el, settings);
+    return el;
+  };
+
+  it("inks a highlight with no alpha, which the old selector rule missed", () => {
+    const el = render('<mark style="background: #FFD400;">x</mark>');
+    expect(el.querySelector("mark")?.style.color).toBe("rgb(0, 0, 0)");
+  });
+
+  it("inks a colour the palette no longer contains", () => {
+    const el = render('<mark style="background: #101020A6;">x</mark>');
+    expect(el.querySelector("mark")?.style.color).toBe("rgb(255, 255, 255)");
+  });
+
+  it("wins against a theme rule by using important", () => {
+    const el = render('<mark style="background: #FFD400;">x</mark>');
+    expect(
+      el.querySelector("mark")?.style.getPropertyPriority("color")
+    ).toBe("important");
+  });
+
+  it("looks a class-based highlight up in the palette", () => {
+    const el = render('<mark class="hltr-purple">x</mark>');
+    expect(el.querySelector("mark")?.style.color).toBe("rgb(0, 0, 0)");
+  });
+
+  it("leaves a highlight it cannot resolve alone", () => {
+    const el = render('<mark class="hltr-unknown">x</mark>');
+    expect(el.querySelector("mark")?.style.color).toBe("");
+  });
+
+  it("does nothing when the setting is off", () => {
+    const el = document.createElement("div");
+    el.innerHTML = '<mark style="background: #FFD400;">x</mark>';
+    paintMarkInk(el, { contrastText: false, highlighters: {} } as never);
+    expect(el.querySelector("mark")?.style.color).toBe("");
   });
 });

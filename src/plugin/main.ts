@@ -16,7 +16,7 @@ import contextMenu from "src/plugin/contextMenu";
 import highlighterMenu from "src/ui/highlighterMenu";
 import { createHighlighterIcons } from "src/icons/customIcons";
 
-import { createStyles } from "src/utils/createStyles";
+import { createStyles, paintMarkInk } from "src/utils/createStyles";
 import {
   applyReadingHighlight,
   HIGHLIGHT_SUFFIX,
@@ -62,7 +62,10 @@ export default class HighlightrPlugin extends Plugin {
     // which source lines each rendered block came from, and the tracker
     // remembers a selection past the point where it collapses, which is what
     // makes the feature usable on a phone.
-    this.registerMarkdownPostProcessor(stampSourceLines);
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      stampSourceLines(el, ctx);
+      paintMarkInk(el, this.settings);
+    });
 
     this.readingBar = new ReadingSelectionBar(
       () => {

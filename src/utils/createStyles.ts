@@ -53,6 +53,56 @@ export function contrastText(hex: string): string | null {
   return onBlack >= onWhite ? "#000000" : "#ffffff";
 }
 
+/**
+ * Set legible text on every rendered highlight, on the element itself.
+ *
+ * This was a generated stylesheet rule keyed on the colour, and that is a
+ * specificity race against the theme it is correcting: Minimal's rule is
+ * `.theme-dark.minimal-… .markdown-rendered mark`, three classes deep, so a
+ * plugin rule scoped one class shallower silently loses. It also only matched
+ * colours currently in the palette, so editing a colour left every highlight
+ * already written with the old value unstyled, which is how removing an alpha
+ * suffix sent the text back to the theme's grey.
+ *
+ * An inline style on the element beats any stylesheet, needs no selector to
+ * match, and works for any colour a note happens to contain including ones
+ * the palette no longer has. It sets `important` because the rule it is
+ * correcting may carry it too.
+ *
+ * Only the rendered DOM is touched. The note's own markup is never altered,
+ * which is what keeps anything matching on the literal string working.
+ */
+export function paintMarkInk(el: HTMLElement, settings: HighlightrSettings): void {
+  if (!settings.contrastText) return;
+
+  const marks =
+    el instanceof HTMLElement && el.tagName === "MARK"
+      ? [el]
+      : Array.from(el.querySelectorAll("mark"));
+
+  for (const mark of marks) {
+    // The inline background is authoritative, since that is what the reader
+    // sees; a class-based highlight is looked up in the palette instead.
+    const inline = /#[0-9a-fA-F]{3,8}/.exec(mark.getAttribute("style") ?? "");
+    let hex = inline?.[0] ?? null;
+    if (hex === null) {
+      const named = Array.from(mark.classList)
+        .find((c) => c.startsWith("hltr-"))
+        ?.slice(5);
+      const match = named
+        ? Object.keys(settings.highlighters).find(
+            (k) => k.toLowerCase() === named
+          )
+        : undefined;
+      hex = match ? settings.highlighters[match] : null;
+    }
+    if (hex === null) continue;
+
+    const ink = contrastText(hex);
+    if (ink !== null) mark.style.setProperty("color", ink, "important");
+  }
+}
+
 export function createStyles(settings: HighlightrSettings) {
   let styleSheet = document.createElement("style");
   setAttributes(styleSheet, {
@@ -73,30 +123,5 @@ export function createStyles(settings: HighlightrSettings) {
       styleSheet
     );
 
-    if (!settings.contrastText) return;
-    const ink = contrastText(value);
-    if (ink === null) return;
-
-    // Reading mode only. In Live Preview a mark inside a CodeMirror line is
-    // not inside .markdown-rendered, so it already inherits the normal text
-    // colour and needs no help; it is the rendered view where a theme can
-    // force one colour on every highlight. Minimal sets
-    // `.markdown-rendered mark { color: var(--bg1) }`, which is why the same
-    // highlight is legible while editing and not while reading.
-    //
-    // Scoped under .markdown-rendered so it out-specifies that rule rather
-    // than relying on which stylesheet the app happened to load last. The
-    // hex is matched in both cases because notes written before hex
-    // canonicalisation may carry a lowercase one.
-    const canonical = canonicalHex(value);
-    addNewStyle(
-      [
-        `.markdown-rendered mark.hltr-${colorLowercase}`,
-        `.markdown-rendered mark[style*="${canonical}"]`,
-        `.markdown-rendered mark[style*="${canonical.toLowerCase()}"]`,
-      ].join(",\n"),
-      `color: ${ink};`,
-      styleSheet
-    );
   });
 }
