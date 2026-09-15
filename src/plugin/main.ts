@@ -140,6 +140,17 @@ export default class HighlightrPlugin extends Plugin {
       })
     );
 
+    // The bar picks between sitting beside the text and sitting at the
+    // anchor by measuring the space beside the text, and that space changes
+    // when the pane does: a sidebar opening, a split dragged, the window
+    // resized. Without this the bar keeps whichever shape it had when it
+    // appeared, so widening a narrow pane left it horizontal at the anchor
+    // with room beside the text going unused. Obsidian's resize event
+    // covers sidebars and splits, which a window resize listener does not.
+    this.registerEvent(
+      this.app.workspace.on("resize", () => this.readingBar.reposition())
+    );
+
     this.registerView(
       HIGHLIGHTS_VIEW,
       (leaf) => new HighlightsView(leaf, this)

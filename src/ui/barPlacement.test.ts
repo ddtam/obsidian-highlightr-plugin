@@ -113,4 +113,16 @@ describe("place, falling back to the anchor", () => {
   it("falls back when the pane cannot be measured", () => {
     expect(place({ ...base, gutter: null }).mode).toBe("anchor");
   });
+
+  // Reported after plus.20: narrowing the pane turned the bar horizontal
+  // and widening it again left it that way. The decision is pure and has
+  // no memory, so it returns to the gutter as soon as it is asked again;
+  // what was missing was anything asking on a resize.
+  it("returns to the gutter when the space comes back", () => {
+    const squeezed = place({ ...base, bar: HORIZONTAL, gutter: NARROW });
+    expect(squeezed.mode).toBe("anchor");
+    const restored = place(base);
+    expect(restored.mode).toBe("gutter");
+    expect(restored).toEqual(place(base));
+  });
 });
