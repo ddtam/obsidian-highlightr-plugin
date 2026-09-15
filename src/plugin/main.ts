@@ -109,7 +109,13 @@ export default class HighlightrPlugin extends Plugin {
       const described = describeMarkElement(mark);
       if (described === null || described.path !== view.file?.path) return;
       this.readingSelection.adopt(described);
-      this.readingBar.show(described, mark.getBoundingClientRect(), "tap");
+      this.readingBar.show(
+        described,
+        mark.getBoundingClientRect(),
+        "tap",
+        null,
+        mark
+      );
     });
 
     // An anchored bar is wrong the moment the page moves, so it goes. A
@@ -229,9 +235,14 @@ export default class HighlightrPlugin extends Plugin {
       return;
     }
 
+    // The live Selection goes through as well as the rect: the bar needs the
+    // anchor end and the drag direction, and both are on the Selection while
+    // the rect is only the box around the whole thing.
     this.readingBar.show(
       described,
-      selection.getRangeAt(0).getBoundingClientRect()
+      selection.getRangeAt(0).getBoundingClientRect(),
+      "selection",
+      selection
     );
   }
 

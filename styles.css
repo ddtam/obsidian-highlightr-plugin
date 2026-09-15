@@ -928,6 +928,16 @@ PICKR 1.8.2 MIT | https://github.com/Simonwep/pickr
 
 /* Docked to the bottom on a phone: see the comment in readingSelectionBar.ts
    for why anywhere near the selection is contested space on iOS. */
+/* Beside the text rather than over it, on a pane wide enough to hold it.
+   A column rather than a row because the space between the pane edge and the
+   text is the constraint: a row of eight swatches needs about 170px of it and
+   a column needs about 48px, so rotating is what makes the placement usable
+   at anything short of a full-width window. It also reads as a gutter control
+   rather than a toolbar that wandered off the top of the note. */
+.highlightr-reading-bar.is-gutter {
+  flex-direction: column;
+}
+
 .highlightr-reading-bar.is-docked {
   top: auto !important;
   left: 50% !important;

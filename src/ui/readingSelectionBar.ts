@@ -1,4 +1,5 @@
 import { Platform } from "obsidian";
+import { GAP, gutterOf, place } from "src/ui/barPlacement";
 
 import type { ReadingSelection } from "src/plugin/readingModeHighlight";
 
@@ -19,6 +20,49 @@ import type { ReadingSelection } from "src/plugin/readingModeHighlight";
  */
 /** Why the bar is up, which decides what is allowed to take it down. */
 export type BarSource = "selection" | "tap";
+
+
+/**
+ * The rect of the end the drag STARTED from, collapsed, which is the one
+ * point in a growing selection that does not move.
+ *
+ * A collapsed range has no width, and some engines return an empty rect for
+ * one, so the client rects are tried first and the bounding box is the
+ * fallback. Null when there is no live selection, which happens for a tapped
+ * highlight rather than a drag.
+ */
+export function anchorRect(live: Selection | null): DOMRect | null {
+  if (live === null || live.anchorNode === null) return null;
+  const r = document.createRange();
+  try {
+    r.setStart(live.anchorNode, live.anchorOffset);
+    r.collapse(true);
+  } catch {
+    return null;
+  }
+  const rects = r.getClientRects();
+  if (rects.length > 0) return rects[0];
+  const box = r.getBoundingClientRect();
+  return box.height > 0 ? box : null;
+}
+
+/**
+ * Whether the focus end is after the anchor: a normal start-to-end drag.
+ *
+ * Asked of the Selection rather than inferred from which way the rects moved,
+ * because the answer is already there and an inference would need history the
+ * bar does not keep. Defaults to forward, which is the 99% case, when there
+ * is nothing to compare.
+ */
+export function isForward(live: Selection | null): boolean {
+  if (live === null || live.anchorNode === null || live.focusNode === null) {
+    return true;
+  }
+  const rel = live.anchorNode.compareDocumentPosition(live.focusNode);
+  if (rel & Node.DOCUMENT_POSITION_FOLLOWING) return true;
+  if (rel & Node.DOCUMENT_POSITION_PRECEDING) return false;
+  return live.focusOffset >= live.anchorOffset;
+}
 
 export class ReadingSelectionBar {
   private el: HTMLElement | null = null;
@@ -43,7 +87,19 @@ export class ReadingSelectionBar {
   }
 
   /** Place the bar for a selection or a tapped highlight. */
-  show(selection: ReadingSelection, rect: DOMRect, source: BarSource = "selection"): void {
+  show(
+    selection: ReadingSelection,
+    rect: DOMRect,
+    source: BarSource = "selection",
+    live: Selection | null = null,
+    /**
+     * Where the bar is about to sit, for measuring the space beside the
+     * text. A drag supplies it from the selection's anchor; a tapped
+     * highlight supplies the mark, which has no Selection behind it and
+     * would otherwise never get the placement beside the text.
+     */
+    node: Node | null = null
+  ): void {
     this.hide();
     this.source = source;
     const swatches = this.colours();
@@ -91,7 +147,7 @@ export class ReadingSelectionBar {
       bar.addClass("is-docked");
       this.trackDock();
     } else {
-      this.position(bar, rect);
+      this.position(bar, rect, live, node);
     }
   }
 
@@ -101,22 +157,50 @@ export class ReadingSelectionBar {
   }
 
   /**
-   * Below the selection by default, because iOS puts its own menu above it.
-   * Flips above only when there is no room below, and is clamped so a
-   * selection near an edge cannot push the bar off screen.
+   * Beside the text where there is room for it, and otherwise at the end the
+   * drag started from. See src/ui/barPlacement.ts for why those are the two
+   * options and why neither is "under the selection", which is what this did
+   * and what made the bar follow the cursor across the text being read.
+   *
+   * The vertical class goes on BEFORE measuring, because the gap only has to
+   * hold a column of swatches and measuring the horizontal bar would reject
+   * a gap that fits. If it does not fit, the class comes off and the bar is
+   * measured again as a row.
    */
-  private position(bar: HTMLElement, rect: DOMRect): void {
-    const gap = 8;
-    const { width, height } = bar.getBoundingClientRect();
-    const room = window.innerHeight - rect.bottom;
-    const top =
-      room > height + gap * 2 ? rect.bottom + gap : rect.top - height - gap;
+  private position(
+    bar: HTMLElement,
+    rect: DOMRect,
+    live: Selection | null,
+    node: Node | null
+  ): void {
+    const gutter = gutterOf(node ?? live?.anchorNode ?? null);
 
-    bar.style.top = `${Math.max(gap, Math.min(top, window.innerHeight - height - gap))}px`;
-    bar.style.left = `${Math.max(
-      gap,
-      Math.min(rect.left, window.innerWidth - width - gap)
-    )}px`;
+    bar.addClass("is-gutter");
+    let box = bar.getBoundingClientRect();
+    let spot = place({
+      bar: box,
+      anchor: anchorRect(live) ?? rect,
+      selection: rect,
+      gutter,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      forward: isForward(live),
+    });
+
+    if (spot.mode !== "gutter") {
+      bar.removeClass("is-gutter");
+      box = bar.getBoundingClientRect();
+      spot = place({
+        bar: box,
+        anchor: anchorRect(live) ?? rect,
+        selection: rect,
+        gutter,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        forward: isForward(live),
+      });
+    }
+
+    bar.style.top = `${spot.top}px`;
+    bar.style.left = `${spot.left}px`;
   }
 
   /**
