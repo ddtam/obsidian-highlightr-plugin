@@ -78,8 +78,8 @@ export default class HighlightrPlugin extends Plugin {
           .filter((name) => enabled.length === 0 || enabled.includes(name))
           .map((name) => ({ name, hex: this.settings.highlighters[name] }));
       },
-      (name) => this.highlightSelectionInReadingMode(name),
-      () => this.removeHighlightInReadingMode()
+      (name) => this.applyFromBar(name),
+      () => this.eraseFromBar()
     );
 
     this.registerDomEvent(document, "selectionchange", () => {
@@ -110,7 +110,7 @@ export default class HighlightrPlugin extends Plugin {
       if (described === null || described.path !== view.file?.path) return;
       this.readingSelection.adopt(described);
       this.readingBar.show(
-        described,
+        described.mark !== undefined,
         mark.getBoundingClientRect(),
         "tap",
         null,
@@ -221,9 +221,33 @@ export default class HighlightrPlugin extends Plugin {
 
   /** Show or hide the swatch bar for the selection that just changed. */
   private updateReadingBar(selection: Selection | null): void {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const editing = view !== null && view.getMode() !== "preview";
+
+    // EDIT MODE IS A SEPARATE SETTING, and off by default, because a
+    // selection means different things in the two modes. Selecting in
+    // reading mode is almost always intent to do something with the text;
+    // selecting while editing is usually about to be typed over. A bar
+    // that appears on every drag through a paragraph would be noise.
+    if (editing) {
+      if (!barSuitsPlatform(this.settings.editorBar)) return;
+      const text = view.editor.getSelection();
+      if (text.length === 0) {
+        if (this.readingBar.dismissedBySelection) this.readingBar.hide();
+        return;
+      }
+      if (selection === null || selection.rangeCount === 0) return;
+      this.readingBar.show(
+        text.includes("<mark"),
+        selection.getRangeAt(0).getBoundingClientRect(),
+        "selection",
+        selection
+      );
+      return;
+    }
+
     if (!barSuitsPlatform(this.settings.readingBar)) return;
 
-    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     const described =
       view && view.getMode() === "preview"
         ? this.readingSelection.current(view.file?.path)
@@ -253,7 +277,7 @@ export default class HighlightrPlugin extends Plugin {
     // anchor end and the drag direction, and both are on the Selection while
     // the rect is only the box around the whole thing.
     this.readingBar.show(
-      described,
+      described.mark !== undefined,
       selection.getRangeAt(0).getBoundingClientRect(),
       "selection",
       selection
@@ -261,6 +285,33 @@ export default class HighlightrPlugin extends Plugin {
   }
 
   /** Apply a colour to the remembered reading-mode selection. */
+  /**
+   * Apply a colour from the bar, in whichever mode the view is in.
+   *
+   * Reading mode has to locate the selection in the source, which is what
+   * readingModeHighlight exists for. Edit mode does not: the per-colour
+   * commands already wrap the editor's own selection, so the bar runs the
+   * same command the palette and the context menu run, and there is one
+   * apply path rather than two.
+   */
+  private applyFromBar(name: string): void {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (view !== null && view.getMode() !== "preview") {
+      this.app.commands.executeCommandById(`highlightr-plugin:${name}`);
+      return;
+    }
+    this.highlightSelectionInReadingMode(name);
+  }
+
+  private eraseFromBar(): void {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (view !== null && view.getMode() !== "preview") {
+      this.eraseHighlight(view.editor);
+      return;
+    }
+    this.removeHighlightInReadingMode();
+  }
+
   private highlightSelectionInReadingMode(name: string): void {
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     const selection = this.readingSelection.current(view?.file?.path);

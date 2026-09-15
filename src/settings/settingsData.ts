@@ -26,6 +26,13 @@ export interface HighlightrSettings {
    */
   readingBar: ReadingBarMode;
   /**
+   * The same bar while editing. Separate from readingBar, and off by
+   * default, because a selection means different things in the two
+   * modes: in reading mode it is almost always intent to do something
+   * with the text, while editing it is usually about to be typed over.
+   */
+  editorBar: ReadingBarMode;
+  /**
    * Which colours the reading-mode bar offers, by name.
    *
    * Empty means all of them, so a palette that predates this setting behaves
@@ -51,6 +58,7 @@ export interface HighlightrSettings {
 const DEFAULT_SETTINGS: HighlightrSettings = {
   highlighterStyle: "none",
   readingBar: "mobile",
+  editorBar: "never",
   readingBarColors: [],
   contrastText: true,
   highlighterMethods: "inline-styles",

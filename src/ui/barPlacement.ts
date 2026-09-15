@@ -80,10 +80,15 @@ export const GAP = 8;
 /** Blocks a selection can sit in whose left edge is the text column's. */
 const BLOCK =
   "p, li, td, th, blockquote, pre, h1, h2, h3, h4, h5, h6, " +
-  ".callout, .markdown-preview-sizer > div";
+  // .cm-line is the editor's block, and it is what carries the column
+  // width there: CodeMirror constrains the line, not the scroller, the
+  // same way the reading view constrains the block rather than the sizer.
+  ".callout, .markdown-preview-sizer > div, .cm-line";
 
 /** Panes a reading selection can be inside, innermost first. */
-const PANE = ".markdown-preview-view, .markdown-reading-view, .view-content";
+const PANE =
+  ".markdown-preview-view, .markdown-reading-view, .cm-scroller, " +
+  ".view-content";
 
 /**
  * The space left of the text, and where the text starts, for the pane the

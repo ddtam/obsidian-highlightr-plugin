@@ -124,6 +124,27 @@ export class HighlightrSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
+      .setName("Selection bar while editing")
+      .setDesc(
+        "Show the same bar when text is selected in edit mode. Off by " +
+        "default: selecting while editing is usually about to be typed " +
+        "over, so a bar on every drag would be noise."
+      )
+      .addDropdown((dropdown) => {
+        dropdown.addOptions({
+          mobile: "On mobile only",
+          always: "Always",
+          never: "Never",
+        });
+        dropdown
+          .setValue(this.plugin.settings.editorBar)
+          .onChange((value: ReadingBarMode) => {
+            this.plugin.settings.editorBar = value;
+            this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
       .setName("Readable text on highlights")
       .setDesc(
         "Sets highlighted text to black or white, whichever contrasts better " +

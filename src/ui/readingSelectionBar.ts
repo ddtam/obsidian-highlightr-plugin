@@ -1,7 +1,6 @@
 import { Platform } from "obsidian";
 import { GAP, gutterOf, place } from "src/ui/barPlacement";
 
-import type { ReadingSelection } from "src/plugin/readingModeHighlight";
 
 /**
  * A swatch bar that appears beside a selection in reading mode.
@@ -92,7 +91,13 @@ export class ReadingSelectionBar {
 
   /** Place the bar for a selection or a tapped highlight. */
   show(
-    selection: ReadingSelection,
+    /**
+     * Whether to draw the eraser. This was the whole ReadingSelection
+     * descriptor, of which the bar read one field. Edit mode has no such
+     * descriptor and inventing one would have meant faking lineStart,
+     * occurrence and renderedCount, none of which mean anything there.
+     */
+    canErase: boolean,
     rect: DOMRect,
     source: BarSource = "selection",
     live: Selection | null = null,
@@ -131,7 +136,7 @@ export class ReadingSelectionBar {
     // Only when there is something to remove. Offering an eraser over plain
     // text would be a control that cannot do anything, and on a bar this
     // small every slot should be worth its width.
-    if (selection.mark !== undefined) {
+    if (canErase) {
       const eraser = bar.createEl("button", {
         cls: "highlightr-reading-swatch highlightr-reading-eraser",
         text: "\u00d7",
