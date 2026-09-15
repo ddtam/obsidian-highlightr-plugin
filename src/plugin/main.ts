@@ -118,17 +118,20 @@ export default class HighlightrPlugin extends Plugin {
       );
     });
 
-    // An anchored bar is wrong the moment the page moves, so it goes. A
-    // docked one is not anchored to anything that scrolls, and taking it away
-    // mid-scroll would mean losing a selection just for moving the page to
-    // see what is being highlighted.
+    // The bar FOLLOWS a scroll rather than going away. It used to hide,
+    // which was right while it sat under the selection and pointed at
+    // nothing once the page moved. Beside the text it is still beside the
+    // text, and the reason mobile was already exempt applies here too:
+    // scrolling to see what you are about to highlight should not cost you
+    // the selection. A docked bar needs nothing, being anchored to the
+    // viewport rather than to the page.
     this.registerDomEvent(
       document,
       "scroll",
       () => {
-        if (!Platform.isMobile) this.readingBar.hide();
+        if (!Platform.isMobile) this.readingBar.reposition();
       },
-      { capture: true }
+      { capture: true, passive: true }
     );
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", () => {

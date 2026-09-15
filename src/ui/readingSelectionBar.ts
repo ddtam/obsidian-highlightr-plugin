@@ -69,6 +69,10 @@ export class ReadingSelectionBar {
   private source: BarSource = "selection";
   private tracking = 0;
   private dockedAt = -1;
+  private anchorNode: Node | null = null;
+  /** Set only for a tapped highlight, which has no live Selection. */
+  private tapRect: DOMRect | null = null;
+  private repositioning = 0;
   private navbar: HTMLElement | null = null;
   private settled = 0;
   private wake: (() => void) | null = null;
@@ -137,6 +141,8 @@ export class ReadingSelectionBar {
     }
 
     this.el = bar;
+    this.anchorNode = node ?? live?.anchorNode ?? null;
+    this.tapRect = live === null ? rect : null;
     // Docked on a phone rather than floated against the selection. iOS places
     // its own selection menu above or below depending on the room available,
     // so any position next to the selection is one it may also choose, and
@@ -149,6 +155,53 @@ export class ReadingSelectionBar {
     } else {
       this.position(bar, rect, live, node);
     }
+  }
+
+
+  /**
+   * Put the bar back where it belongs after the page has moved.
+   *
+   * Scrolling used to take the bar away on desktop, because a bar sitting
+   * under the selection points at nothing the moment the page moves. Now
+   * that it sits beside the text rather than over it, the mobile reasoning
+   * applies here too: losing the bar because you scrolled to see what you
+   * are about to highlight is worse than the bar being briefly stale. The
+   * selection survives a scroll, so there is always somewhere to put it.
+   *
+   * Coalesced to one frame. A scroll fires many events and each placement
+   * reads rects, so without this it would be several forced layouts per
+   * frame for a bar that only needs to land once.
+   */
+  reposition(): void {
+    if (this.el === null || this.el.hasClass("is-docked")) return;
+    if (this.repositioning !== 0) return;
+    this.repositioning = requestAnimationFrame(() => {
+      this.repositioning = 0;
+      const bar = this.el;
+      if (bar === null) return;
+
+      // A tapped highlight has no Selection to re-measure, so it is placed
+      // against the mark it was opened on, which moves with the page.
+      if (this.tapRect !== null) {
+        const node = this.anchorNode;
+        const el = node instanceof Element ? node : node?.parentElement;
+        if (el === undefined || el === null) return;
+        this.position(bar, el.getBoundingClientRect(), null, node);
+        return;
+      }
+
+      const live = window.getSelection();
+      if (live === null || live.isCollapsed || live.rangeCount === 0) {
+        if (this.dismissedBySelection) this.hide();
+        return;
+      }
+      this.position(
+        bar,
+        live.getRangeAt(0).getBoundingClientRect(),
+        live,
+        this.anchorNode
+      );
+    });
   }
 
   /** Whether a collapsing selection should take this bar down. */
@@ -276,6 +329,15 @@ export class ReadingSelectionBar {
       cancelAnimationFrame(this.tracking);
       this.tracking = 0;
     }
+    if (this.repositioning !== 0) {
+      cancelAnimationFrame(this.repositioning);
+      this.repositioning = 0;
+    }
+    // Dropped with the bar. Holding the node a highlight was tapped on
+    // keeps a detached element alive once the note re-renders, and the
+    // next bar brings its own.
+    this.anchorNode = null;
+    this.tapRect = null;
     if (this.wake !== null) {
       document.removeEventListener("scroll", this.wake, { capture: true });
       document.removeEventListener("transitionend", this.wake, { capture: true });
