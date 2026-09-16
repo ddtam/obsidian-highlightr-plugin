@@ -79,6 +79,49 @@ describe("paintMarkInk", () => {
   });
 });
 
+describe("paintMarkInk on a mark with no background", () => {
+  const settings = {
+    contrastText: true,
+    highlighters: { Purple: "#A28AE5" },
+  } as never;
+
+  const render = (style: string, cls = "") => {
+    const el = document.createElement("div");
+    el.innerHTML = `<mark class="${cls}" style="${style}">x</mark>`;
+    paintMarkInk(el, settings);
+    return el.querySelector("mark") as HTMLElement;
+  };
+
+  // The flag pipeline's failed state: the flag's colour as text, with no
+  // highlight behind it, which is how a flag that was tried and could not
+  // be resolved is told apart from one still waiting. Contrast ink takes
+  // the first hex anywhere in the style, so it would find the TEXT colour,
+  // compute a contrast against it, and paint over the only thing that
+  // state uses to say what it is.
+  it("leaves a text-coloured mark alone", () => {
+    const mark = render("color: #A28AE5;");
+    expect(mark.style.color).toBe("rgb(162, 138, 229)");
+  });
+
+  it("leaves it alone whatever the colour would have computed to", () => {
+    // A near-black flag colour would otherwise be inked white.
+    const mark = render("color: #101010;");
+    expect(mark.style.color).toBe("rgb(16, 16, 16)");
+  });
+
+  // An empty style is a class-based highlight, whose colour is in the
+  // palette rather than the attribute. That still gets inked.
+  it("still inks a class-based highlight, which has no inline style", () => {
+    const mark = render("", "hltr-purple");
+    expect(mark.style.color).not.toBe("");
+  });
+
+  it("still inks a solid inline background", () => {
+    const mark = render("background: #A28AE5;");
+    expect(mark.style.color).not.toBe("");
+  });
+});
+
 describe("paintMarkInk on a half highlight", () => {
   const HALF = 'background: linear-gradient(transparent 55%, #A28AE5 55%);';
   const settings = { contrastText: true, highlighters: { Purple: "#A28AE5" } } as never;
