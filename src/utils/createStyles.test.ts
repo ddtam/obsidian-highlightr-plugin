@@ -120,6 +120,40 @@ describe("paintMarkInk on a mark with no background", () => {
     const mark = render("background: #A28AE5;");
     expect(mark.style.color).not.toBe("");
   });
+
+  // The state as the flag runner actually writes it. `transparent` is
+  // written rather than omitted because a bare <mark> takes the theme's own
+  // highlight colour, so leaving the background out would render as a
+  // highlight in some other colour instead of as no highlight at all.
+  it("leaves a mark whose background is explicitly transparent alone", () => {
+    const mark = render("background-color: transparent; color: #FF6666;");
+    expect(mark.style.color).toBe("rgb(255, 102, 102)");
+  });
+
+  it("treats background-color: none the same way", () => {
+    const mark = render("background-color: none; color: #FF6666;");
+    expect(mark.style.color).toBe("rgb(255, 102, 102)");
+  });
+
+  it("treats a fully transparent rgba the same way", () => {
+    const mark = render(
+      "background-color: rgba(0, 0, 0, 0); color: #FF6666;"
+    );
+    expect(mark.style.color).toBe("rgb(255, 102, 102)");
+  });
+
+  it("reads background-color as a background", () => {
+    const mark = render("background-color: #FFD400;");
+    expect(mark.style.color).toBe("rgb(0, 0, 0)");
+  });
+
+  // Reading the first hex anywhere in the style attribute would ink this
+  // against the TEXT colour, which is white, and paint the text black on a
+  // near-black highlight.
+  it("inks against the background when a colour is set too", () => {
+    const mark = render("color: #ffffff; background: #101020;");
+    expect(mark.style.color).toBe("rgb(255, 255, 255)");
+  });
 });
 
 describe("paintMarkInk on a half highlight", () => {

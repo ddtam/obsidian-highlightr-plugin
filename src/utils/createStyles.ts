@@ -54,6 +54,27 @@ export function contrastText(hex: string): string | null {
 }
 
 /**
+ * The inline background a mark actually paints, or null when it paints none.
+ *
+ * `background: transparent` has to count as none, and it is not a curiosity:
+ * a bare `<mark>` takes the theme's own highlight colour, so a mark that
+ * means to show its text colour and nothing else must SAY transparent rather
+ * than leave the background out. The flag pipeline's failed state is written
+ * exactly that way, so reading the property as present-or-absent would ink
+ * over the one thing it uses to say what it is.
+ */
+export function inlineBackground(style: string): string | null {
+  const m = /background(?:-color)?\s*:\s*([^;]+)/i.exec(style);
+  if (m === null) return null;
+  const value = m[1].trim();
+  return /^(none|transparent|rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\))$/i.test(
+    value
+  )
+    ? null
+    : value;
+}
+
+/**
  * Set legible text on every rendered highlight, on the element itself.
  *
  * This was a generated stylesheet rule keyed on the colour, and that is a
@@ -95,22 +116,26 @@ export function paintMarkInk(el: HTMLElement, settings: HighlightrSettings): voi
       continue;
     }
 
+    const background = inlineBackground(style);
+
     // A MARK WITH AN INLINE STYLE AND NO BACKGROUND IS CARRYING ITS OWN
     // TEXT COLOUR DELIBERATELY, and inking it would overwrite the only
     // thing it uses to say so. The flag pipeline's failed state is the
     // flag's colour as text with no highlight behind it, which is how a
     // flag that was tried and could not be resolved is told apart from one
-    // still waiting. Contrast ink reads the first hex anywhere in the
-    // style, so without this it would find the TEXT colour, compute black
-    // or white against it, and paint over it.
+    // still waiting.
     //
     // An empty style is not this case: a class-based highlight carries its
     // colour in the palette and is looked up below.
-    if (style !== "" && !/background/i.test(style)) continue;
+    if (style !== "" && background === null) continue;
 
     // The inline background is authoritative, since that is what the reader
     // sees; a class-based highlight is looked up in the palette instead.
-    const inline = /#[0-9a-fA-F]{3,8}/.exec(style);
+    // The hex is read from the BACKGROUND rather than from anywhere in the
+    // style: a mark carrying both `color` and `background` would otherwise
+    // be inked against whichever came first in the attribute.
+    const inline =
+      background === null ? null : /#[0-9a-fA-F]{3,8}/.exec(background);
     let hex = inline?.[0] ?? null;
     if (hex === null) {
       const named = Array.from(mark.classList)
