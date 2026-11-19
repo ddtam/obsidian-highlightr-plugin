@@ -1,5 +1,8 @@
-import { Menu, Notice } from "obsidian";
-import { HighlightrSettings } from "src/settings/settingsData";
+import { Menu, Notice, setTooltip } from "obsidian";
+import {
+  HighlightrSettings,
+  swatchLabel,
+} from "src/settings/settingsData";
 import {
   Coords,
   EnhancedApp,
@@ -30,6 +33,16 @@ const highlighterMenu = (
         highlighterItem.onClick(() => {
           app.commands.executeCommandById(`highlightr-plugin:${highlighter}`);
         });
+        // The same meaning the bar shows on hover. `dom` is not in the
+        // public MenuItem type, so it is reached for rather than assumed.
+        const { description } = swatchLabel(
+          highlighter,
+          settings.colorDescriptions
+        );
+        const dom = (highlighterItem as unknown as { dom?: HTMLElement }).dom;
+        if (description !== null && dom instanceof HTMLElement) {
+          setTooltip(dom, description, { placement: "right" });
+        }
       });
     });
 

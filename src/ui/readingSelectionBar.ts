@@ -1,4 +1,4 @@
-import { Platform } from "obsidian";
+import { Platform, setTooltip } from "obsidian";
 import { GAP, gutterOf, place } from "src/ui/barPlacement";
 
 
@@ -19,6 +19,14 @@ import { GAP, gutterOf, place } from "src/ui/barPlacement";
  */
 /** Why the bar is up, which decides what is allowed to take it down. */
 export type BarSource = "selection" | "tap";
+
+/** One colour as the bar draws it. */
+export interface BarSwatch {
+  name: string;
+  hex: string;
+  /** What the colour means, or null when none is set. */
+  description: string | null;
+}
 
 
 /**
@@ -77,16 +85,25 @@ export class ReadingSelectionBar {
   private wake: (() => void) | null = null;
   private onPick: (colour: string) => void;
   private onErase: () => void;
-  private colours: () => { name: string; hex: string }[];
+  private colours: () => BarSwatch[];
+  private restOpacity: () => number;
+  /**
+   * Whether the phone's legend of colour meanings is open. Kept on the
+   * instance rather than per bar, so someone still learning a palette does
+   * not reopen it on every selection, and it closes again on a reload.
+   */
+  private legendOpen = false;
 
   constructor(
-    colours: () => { name: string; hex: string }[],
+    colours: () => BarSwatch[],
     onPick: (colour: string) => void,
-    onErase: () => void
+    onErase: () => void,
+    restOpacity: () => number = () => 1
   ) {
     this.colours = colours;
     this.onPick = onPick;
     this.onErase = onErase;
+    this.restOpacity = restOpacity;
   }
 
   /** Place the bar for a selection or a tapped highlight. */
@@ -115,6 +132,12 @@ export class ReadingSelectionBar {
     if (swatches.length === 0) return;
 
     const bar = document.body.createDiv({ cls: "highlightr-reading-bar" });
+    // Read by the stylesheet, which applies it only where the device can
+    // hover, since on a phone nothing could raise the bar before the tap.
+    bar.style.setProperty(
+      "--highlightr-bar-rest-opacity",
+      String(this.restOpacity())
+    );
 
     // pointerdown, not click: on a phone the tap that collapses the selection
     // can also move focus, and the click sometimes never lands.
@@ -126,10 +149,15 @@ export class ReadingSelectionBar {
         run();
       });
 
-    for (const { name, hex } of swatches) {
+    for (const { name, hex, description } of swatches) {
       const swatch = bar.createEl("button", { cls: "highlightr-reading-swatch" });
       swatch.style.background = hex;
-      swatch.setAttribute("aria-label", name);
+      // Obsidian's tooltip is what shows the meaning on hover. The name
+      // stays first, so a screen reader still hears which colour it is.
+      setTooltip(
+        swatch,
+        description === null ? name : `${name}\n${description}`
+      );
       on(swatch, () => this.onPick(name));
     }
 
@@ -143,6 +171,15 @@ export class ReadingSelectionBar {
       });
       eraser.setAttribute("aria-label", "Remove highlight");
       on(eraser, () => this.onErase());
+    }
+
+    // A phone has no hover, and a long press cannot be told from a tap
+    // here: picking happens on pointerdown so that the selection's collapse
+    // cannot swallow it, which means the press has already acted before it
+    // could become long. So the meanings get their own control, offered only
+    // when there is a meaning to show.
+    if (Platform.isMobile && swatches.some((s) => s.description !== null)) {
+      this.addLegend(bar, swatches);
     }
 
     this.el = bar;
@@ -162,6 +199,50 @@ export class ReadingSelectionBar {
     }
   }
 
+
+  /**
+   * An info mark that opens a list of what each colour on the bar means.
+   *
+   * The list sits inside the bar, above the swatches, so it docks and
+   * follows the navbar with them and goes when they go. Its toggle does not
+   * dismiss the bar, since reading the list is a step towards picking.
+   */
+  private addLegend(bar: HTMLElement, swatches: BarSwatch[]): void {
+    const legend = bar.createDiv({ cls: "highlightr-reading-legend" });
+    for (const { name, hex, description } of swatches) {
+      if (description === null) continue;
+      const row = legend.createDiv({ cls: "highlightr-reading-legend-row" });
+      row.createSpan({ cls: "highlightr-reading-legend-dot" })
+        .style.background = hex;
+      row.createSpan({
+        cls: "highlightr-reading-legend-text",
+        text: `${name}: ${description}`,
+      });
+    }
+
+    const info = bar.createEl("button", {
+      cls: "highlightr-reading-swatch highlightr-reading-info",
+      text: "i",
+    });
+    info.setAttribute("aria-label", "What the colours mean");
+    const paint = () => {
+      bar.toggleClass("is-legend-open", this.legendOpen);
+      info.toggleClass("is-active", this.legendOpen);
+    };
+    info.addEventListener("pointerdown", (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      this.legendOpen = !this.legendOpen;
+      // Untested on a phone so far: iOS may collapse the selection on this
+      // tap whatever pointerdown does, and a selection-opened bar goes when
+      // the selection does. Once the reader has touched the bar it is held
+      // the way a tapped highlight's bar is, up until a tap elsewhere. The
+      // cached selection is what a swatch acts on, so nothing is lost.
+      this.source = "tap";
+      paint();
+    });
+    paint();
+  }
 
   /**
    * Put the bar back where it belongs after the page has moved.
@@ -259,6 +340,13 @@ export class ReadingSelectionBar {
 
     bar.style.top = `${spot.top}px`;
     bar.style.left = `${spot.left}px`;
+
+    // In the gutter the bar is a column, and a tooltip above or below a
+    // swatch covers the next one. To the left it covers only the margin
+    // the gutter placement already found empty.
+    const side = spot.mode === "gutter" ? "left" : "top";
+    bar.querySelectorAll<HTMLElement>(".highlightr-reading-swatch")
+      .forEach((el) => el.setAttribute("data-tooltip-position", side));
   }
 
   /**

@@ -1020,3 +1020,73 @@ PICKR 1.8.2 MIT | https://github.com/Simonwep/pickr
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Resting opacity for the swatch bar, set per bar from the setting through
+   --highlightr-bar-rest-opacity. Only where the device can hover: a phone
+   has nothing to raise the bar before the tap that uses it. Focus raises it
+   too, for anyone reaching it from the keyboard. */
+@media (hover: hover) {
+  .highlightr-reading-bar {
+    opacity: var(--highlightr-bar-rest-opacity, 1);
+    transition: opacity 120ms ease-out;
+  }
+  .highlightr-reading-bar:hover,
+  .highlightr-reading-bar:focus-within {
+    opacity: 1;
+  }
+}
+
+/* The info mark on a phone's bar, and the list of meanings it opens. The
+   list takes a full row above the swatches, so the bar wraps. */
+.highlightr-reading-bar:has(.highlightr-reading-legend) {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.highlightr-reading-info {
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-family: var(--font-text);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.highlightr-reading-info.is-active {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+}
+
+.highlightr-reading-legend {
+  display: none;
+  order: -1;
+  flex-basis: 100%;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 4px 4px;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.highlightr-reading-bar.is-legend-open .highlightr-reading-legend {
+  display: flex;
+}
+
+.highlightr-reading-legend-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.highlightr-reading-legend-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--background-modifier-border);
+}
+
+.highlightr-description-input {
+  width: 100%;
+}

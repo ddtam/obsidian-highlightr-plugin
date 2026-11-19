@@ -11,7 +11,11 @@ import {
 import { wait } from "src/utils/util";
 import addIcons from "src/icons/customIcons";
 import { HighlightrSettingTab } from "../settings/settingsTab";
-import { HighlightrSettings } from "../settings/settingsData";
+import {
+  HighlightrSettings,
+  restOpacity,
+  swatchLabel,
+} from "../settings/settingsData";
 import DEFAULT_SETTINGS from "../settings/settingsData";
 import contextMenu from "src/plugin/contextMenu";
 import highlighterMenu from "src/ui/highlighterMenu";
@@ -76,10 +80,16 @@ export default class HighlightrPlugin extends Plugin {
           // An empty list means every colour, so a palette that predates the
           // setting keeps behaving as it did.
           .filter((name) => enabled.length === 0 || enabled.includes(name))
-          .map((name) => ({ name, hex: this.settings.highlighters[name] }));
+          .map((name) => ({
+            name,
+            hex: this.settings.highlighters[name],
+            description: swatchLabel(name, this.settings.colorDescriptions)
+              .description,
+          }));
       },
       (name) => this.applyFromBar(name),
-      () => this.eraseFromBar()
+      () => this.eraseFromBar(),
+      () => restOpacity(this.settings.barRestOpacity)
     );
 
     this.registerDomEvent(document, "selectionchange", () => {
@@ -540,6 +550,11 @@ export default class HighlightrPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    // Copied, because the merge is shallow: without this the settings tab
+    // would write descriptions into DEFAULT_SETTINGS' own object.
+    this.settings.colorDescriptions = {
+      ...(this.settings.colorDescriptions ?? {}),
+    };
   }
 
   async saveSettings() {

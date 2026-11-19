@@ -8,7 +8,12 @@ import {
 } from "obsidian";
 import Pickr from "@simonwep/pickr";
 import Sortable from "sortablejs";
-import { HIGHLIGHTER_METHODS, HIGHLIGHTER_STYLES } from "./settingsData";
+import {
+  HIGHLIGHTER_METHODS,
+  HIGHLIGHTER_STYLES,
+  moveDescription,
+  restOpacity,
+} from "./settingsData";
 import type { ReadingBarMode } from "./settingsData";
 import { setAttributes } from "src/utils/setAttributes";
 
@@ -141,6 +146,24 @@ export class HighlightrSettingTab extends PluginSettingTab {
           .onChange((value: ReadingBarMode) => {
             this.plugin.settings.editorBar = value;
             this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Bar opacity at rest")
+      .setDesc(
+        "How strongly the bar shows until the mouse is over it, from 0.1 " +
+          "to 1. It comes up to full opacity on hover. On a phone it stays " +
+          "opaque, since there is no hover to raise it before a tap."
+      )
+      .addSlider((slider) => {
+        slider
+          .setLimits(0.1, 1, 0.05)
+          .setDynamicTooltip()
+          .setValue(restOpacity(this.plugin.settings.barRestOpacity))
+          .onChange(async (value) => {
+            this.plugin.settings.barRestOpacity = value;
+            await this.plugin.saveSettings();
           });
       });
 
@@ -338,6 +361,11 @@ export class HighlightrSettingTab extends PluginSettingTab {
                 );
                 delete this.plugin.settings.highlighters[previous];
                 order[at === -1 ? order.length : at] = name;
+                moveDescription(
+                  this.plugin.settings.colorDescriptions,
+                  previous,
+                  name
+                );
               }
               this.plugin.settings.highlighters[name] = value;
               this.editing = null;
@@ -456,6 +484,11 @@ export class HighlightrSettingTab extends PluginSettingTab {
               );
               delete this.plugin.settings.highlighters[highlighter];
               this.plugin.settings.highlighterOrder.remove(highlighter);
+              moveDescription(
+                this.plugin.settings.colorDescriptions,
+                highlighter,
+                null
+              );
               setTimeout(() => {
                 dispatchEvent(new Event("Highlightr-NewCommand"));
               }, 100);
@@ -467,6 +500,38 @@ export class HighlightrSettingTab extends PluginSettingTab {
       const colorIcon = createEl("span", { cls: "highlighter-setting-icon" });
       colorIcon.innerHTML = icon;
       row.settingEl.prepend(colorIcon);
+    });
+
+    // A section of its own rather than a field on each row above. Those
+    // rows were made to hold one line on a phone, and a text input squeezed
+    // in beside three buttons would undo that.
+    new Setting(containerEl)
+      .setName("What each colour means")
+      .setHeading()
+      .setDesc(
+        "Shown when the pointer is over a colour in the bar or the colour " +
+          "menu, and on a phone under the bar's info mark. Leave a colour " +
+          "blank to show its name alone."
+      );
+
+    this.plugin.settings.highlighterOrder.forEach((highlighter) => {
+      new Setting(containerEl)
+        .setClass("highlightr-description-item")
+        .setName(highlighter)
+        .addText((text) => {
+          text
+            .setPlaceholder("No description")
+            .setValue(
+              this.plugin.settings.colorDescriptions[highlighter] ?? ""
+            )
+            .onChange(async (value) => {
+              const map = this.plugin.settings.colorDescriptions;
+              if (value.trim() === "") delete map[highlighter];
+              else map[highlighter] = value;
+              await this.plugin.saveSettings();
+            });
+          text.inputEl.addClass("highlightr-description-input");
+        });
     });
   }
 }
